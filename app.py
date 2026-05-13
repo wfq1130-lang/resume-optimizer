@@ -487,6 +487,15 @@ def health():
 
 if __name__ == "__main__":
     init_db()
+    # Ensure admin exists
+    admin = get_user_by_username("admin")
+    if not admin:
+        create_user("admin", generate_password_hash("admin123"), "管理员")
+        db = get_db()
+        db.execute("UPDATE users SET is_admin=1, free_quota=9999 WHERE username='admin'")
+        db.commit()
+        db.close()
+        print("Admin created: admin / admin123")
     port = int(os.environ.get("PORT", 5001))
     host = os.environ.get("HOST", "0.0.0.0")
     debug = os.environ.get("DEBUG", "0") == "1"

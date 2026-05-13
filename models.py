@@ -46,6 +46,7 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_analyses_user ON analyses(user_id);
         CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at DESC);
 
+
         CREATE TABLE IF NOT EXISTS redeem_codes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code TEXT UNIQUE NOT NULL,

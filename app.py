@@ -332,10 +332,10 @@ def generate():
     if len(user_input) > 3000:
         user_input = user_input[:3000]
 
-    # Limit guest usage to 1 free generation (tracked by cookie)
+    # Limit guest usage to 1 free generation
     if "user_id" not in session:
-        guest_count = int(request.cookies.get("guest_gen_count", 0))
-        if guest_count >= 1:
+        guest_gen = session.get("guest_gen_count", 0)
+        if guest_gen >= 1:
             return render_template("index.html",
                 gen_error="免费次数已用完（每人限1次），请注册登录后继续使用")
 
@@ -360,20 +360,18 @@ def generate():
             jd_analysis=""
         )
 
-    resp = make_response(render_template("generate_result.html",
+    # Increment guest counter via session
+    if "user_id" not in session:
+        session["guest_gen_count"] = session.get("guest_gen_count", 0) + 1
+        session.modified = True
+
+    return render_template("generate_result.html",
         resume_text=result["resume_text"],
         tips=result["tips"],
         user_input=user_input,
         scene=scene,
         analysis_id=analysis_id
-    ))
-
-    # Increment guest counter
-    if "user_id" not in session:
-        guest_count = int(request.cookies.get("guest_gen_count", 0))
-        resp.set_cookie("guest_gen_count", str(guest_count + 1), max_age=60*60*24*365)
-
-    return resp
+    )
 
 
 @app.route("/guide")

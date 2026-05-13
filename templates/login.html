@@ -22,18 +22,11 @@
       <div class="error">{{ error }}</div>
       {% endif %}
 
-      <!-- Login method tabs -->
-      <div class="role-tabs" style="margin-bottom:18px">
-        <button type="button" class="role-tab active" data-tab="account" onclick="switchTab('account')">账号</button>
-        <button type="button" class="role-tab" data-tab="phone" onclick="switchTab('phone')">手机号</button>
-        <button type="button" class="role-tab" data-tab="email" onclick="switchTab('email')">邮箱</button>
-      </div>
-
       <form method="POST">
         <div class="form-group">
-          <label id="login-label">账号</label>
-          <input type="text" name="account" class="form-control" id="login-input"
-                 placeholder="用户名/手机号/邮箱均可登录" required autofocus>
+          <label>账号</label>
+          <input type="text" name="account" class="form-control"
+                 placeholder="用户名 / 手机号 / 邮箱" required autofocus>
         </div>
         <div class="form-group">
           <label>密码</label>
@@ -78,26 +71,6 @@
   });
   card.addEventListener('mouseleave', function() { card.style.transform = 'rotateX(0) rotateY(0)'; });
 })();
-
-function switchTab(tab) {
-  document.querySelectorAll('.role-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
-  var input = document.getElementById('login-input');
-  var label = document.getElementById('login-label');
-  if (tab === 'phone') {
-    label.textContent = '手机号';
-    input.placeholder = '请输入11位手机号';
-    input.type = 'tel';
-  } else if (tab === 'email') {
-    label.textContent = '邮箱';
-    input.placeholder = '请输入邮箱地址';
-    input.type = 'email';
-  } else {
-    label.textContent = '账号';
-    input.placeholder = '用户名/手机号/邮箱均可登录';
-    input.type = 'text';
-  }
-}
 </script>
 </body>
 </html>

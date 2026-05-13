@@ -1,0 +1,55 @@
+{% extends "layout.html" %}
+{% block title %}升级会员 — AI简历优化器{% endblock %}
+{% block content %}
+
+<div class="page-title" style="text-align:center;justify-content:center;margin-bottom:8px">升级会员</div>
+<p style="text-align:center;color:var(--text-muted);margin-bottom:32px">
+  {% if session.free_quota > 0 %}
+  你还有 <strong style="color:var(--primary)">{{ session.free_quota }}</strong> 次免费分析
+  {% else %}
+  免费次数已用完 😢
+  {% endif %}
+</p>
+
+<div class="flex-row" style="justify-content:center;gap:24px;align-items:stretch;flex-wrap:wrap">
+  <!-- Single purchase -->
+  <div class="card" style="flex:1;min-width:260px;max-width:340px;text-align:center;padding:32px 24px">
+    <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:8px">单次购买</div>
+    <div style="font-size:2.5rem;font-weight:800;color:var(--text);margin-bottom:4px">
+      ¥9.9
+      <span style="font-size:.85rem;font-weight:400;color:var(--text-muted)">/次</span>
+    </div>
+    <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:20px">一次完整的简历分析</p>
+    <ul style="text-align:left;padding-left:20px;margin-bottom:24px;font-size:.85rem;line-height:2;color:var(--text-secondary)">
+      <li>智能评分分析</li>
+      <li>多维度详细打分</li>
+      <li>优化建议 + 重写</li>
+      <li>JD 匹配分析</li>
+    </ul>
+    <button class="btn btn-outline" style="width:100%" disabled>即将上线</button>
+  </div>
+
+  <!-- Monthly plan -->
+  <div class="card" style="flex:1;min-width:260px;max-width:340px;text-align:center;padding:32px 24px;border:2px solid var(--primary);position:relative">
+    <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;padding:4px 16px;border-radius:12px;font-size:.75rem;font-weight:600">推荐</div>
+    <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:8px;margin-top:4px">包月无限次</div>
+    <div style="font-size:2.5rem;font-weight:800;color:var(--primary);margin-bottom:4px">
+      ¥29.9
+      <span style="font-size:.85rem;font-weight:400;color:var(--text-muted)">/月</span>
+    </div>
+    <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:20px">无限次分析 + JD 匹配</p>
+    <ul style="text-align:left;padding-left:20px;margin-bottom:24px;font-size:.85rem;line-height:2;color:var(--text-secondary)">
+      <li>无限次简历分析</li>
+      <li>无限次 JD 匹配</li>
+      <li>优先处理队列</li>
+      <li>导出优化简历</li>
+    </ul>
+    <button class="btn btn-primary" style="width:100%" disabled>即将上线</button>
+  </div>
+</div>
+
+<div style="text-align:center;margin-top:24px;padding:16px;background:#fef9c3;border-radius:var(--radius);max-width:600px;margin-left:auto;margin-right:auto;font-size:.85rem;color:#b45309">
+  💡 支付功能即将上线，目前可以先免费试用。有建议或需求欢迎反馈！
+</div>
+
+{% endblock %}

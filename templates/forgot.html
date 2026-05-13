@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>忘记密码 — AI简历优化器</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="cursor-glow" id="cursor-glow"></div>
+
+<div class="container">
+<div class="login-box" style="max-width:400px">
+  <h1>找回密码</h1>
+  <div class="card-wrapper" id="tilt-card">
+    <div class="card" style="padding:24px">
+      {% if success %}
+      <div class="success-msg" style="line-height:1.7">
+        密码重置链接已生成（模拟邮件发送）：<br>
+        <a href="{{ reset_url }}" style="word-break:break-all;font-size:.82rem">{{ reset_url }}</a>
+        <br><br>
+        <span style="font-size:.8rem;color:var(--text-muted)">实际部署时将发送邮件到 {{ contact }}</span>
+      </div>
+      {% else %}
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+      <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:16px">
+        输入注册时使用的邮箱或手机号，我们将发送密码重置链接。
+      </p>
+      <form method="POST">
+        <div class="form-group">
+          <label>邮箱或手机号</label>
+          <input type="text" name="account" class="form-control" placeholder="请输入邮箱或手机号" required autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:1rem">发送重置链接</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:14px;font-size:.82rem;color:var(--text-muted)">
+    <a href="/login">返回登录</a>
+  </div>
+</div>
+</div>
+
+<script>
+(function() {
+  var glow = document.getElementById('cursor-glow');
+  if (!glow) return;
+  var mx=0,my=0,cx=window.innerWidth/2,cy=window.innerHeight/2;
+  var rafId=null,idleTimer=null,running=false;
+  document.addEventListener('mousemove',function(e){
+    mx=e.clientX;my=e.clientY;
+    if(!running){running=true;glow.style.opacity='1';rafId=requestAnimationFrame(a);}
+    clearTimeout(idleTimer);
+    idleTimer=setTimeout(function(){running=false;if(rafId)cancelAnimationFrame(rafId);},1000);
+  },{passive:true});
+  document.addEventListener('mouseleave',function(){glow.style.opacity='0';running=false;if(rafId)cancelAnimationFrame(rafId);});
+  document.addEventListener('mouseenter',function(){if(running)glow.style.opacity='1';});
+  function a(){cx+=(mx-cx)*.08;cy+=(my-cy)*.08;glow.style.left=cx+'px';glow.style.top=cy+'px';if(running)rafId=requestAnimationFrame(a);}
+})();
+(function() {
+  var card = document.getElementById('tilt-card');
+  if (!card) return;
+  card.addEventListener('mousemove', function(e) {
+    var r = card.getBoundingClientRect();
+    card.style.transform = 'rotateX('+((e.clientY-r.top)/r.height*2-1)*-8+'deg) rotateY('+((e.clientX-r.left)/r.width*2-1)*8+'deg)';
+  });
+  card.addEventListener('mouseleave', function() { card.style.transform = 'rotateX(0) rotateY(0)'; });
+})();
+</script>
+</body>
+</html>

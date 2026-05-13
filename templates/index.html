@@ -1,0 +1,322 @@
+{% extends "layout.html" %}
+{% block title %}AI简历优化器 — 智能生成与优化{% endblock %}
+{% block content %}
+
+{% if not session.user_id %}
+<!-- ================================================================
+     GUEST: Landing page with chat-style generation
+     ================================================================ -->
+
+<section class="hero" style="padding:48px 16px 28px">
+  <h1 style="font-size:clamp(1.5rem,4vw,2.2rem);margin-bottom:8px">
+    AI 简历<span class="gradient-text">在线制作</span>
+  </h1>
+  <p class="hero-subtitle" style="margin-bottom:28px">
+    与简历AI对话，轻松完成AI简历生成
+  </p>
+</section>
+
+<!-- Chat Dialog -->
+<div style="max-width:680px;margin:0 auto 32px">
+  <form method="POST" action="/generate" id="gen-form">
+    <div class="card" style="padding:20px 24px">
+      <!-- Chat input area -->
+      <div style="position:relative">
+        <textarea name="user_input" id="user-input" class="form-control" rows="4"
+          placeholder="告诉简历AI你的情况，我们免费帮你生成简历，比如：我是一名前端开发工程师..."
+          style="resize:none;font-size:.95rem;line-height:1.7;padding:14px 16px;border-radius:var(--radius-lg)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitGen()}"></textarea>
+
+        <!-- File upload hint -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+          <label for="gen-file" style="cursor:pointer;color:var(--text-muted);font-size:.82rem;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);transition:all var(--transition)">
+            <span>📎 上传文件</span>
+            <input type="file" id="gen-file" name="resume_file" style="display:none" accept=".pdf,.docx,.doc,.txt,.md" onchange="onGenFileSelected(this)">
+          </label>
+          <span id="gen-file-name" style="font-size:.78rem;color:var(--primary);font-weight:500"></span>
+          <div style="font-size:.75rem;color:var(--text-muted)">
+            Enter发送 | Shift+Enter换行 | Ctrl+V粘贴文件
+          </div>
+        </div>
+      </div>
+
+      <!-- Send button -->
+      <div style="text-align:right;margin-top:12px">
+        <button type="submit" class="btn btn-primary" style="padding:10px 28px;font-size:.92rem" id="gen-btn">
+          发送
+        </button>
+      </div>
+
+      {% if gen_error %}
+      <div style="background:#fee2e2;color:#b91c1c;padding:8px 14px;border-radius:var(--radius);margin-top:10px;font-size:.84rem">{{ gen_error }}</div>
+      {% endif %}
+    </div>
+  </form>
+
+  <!-- Scene selection cards -->
+  <p style="text-align:center;margin:20px 0 14px;font-size:.88rem;color:var(--text-secondary)">或选择场景开启AI简历生成</p>
+  <div class="usecase-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+    <div class="usecase-card" onclick="setScene('fresh_graduate','应届毕业生','我是今年刚毕业的大学生，想找一份互联网公司的产品经理工作')">
+      <div class="uc-icon">🎓</div>
+      <h4>应届毕业生</h4>
+      <p style="font-size:.78rem">刚毕业，想找第一份工作</p>
+    </div>
+    <div class="usecase-card" onclick="setScene('career_change','转行求职','我有3年销售经验，现在想转行做UI设计师')">
+      <div class="uc-icon">🔄</div>
+      <h4>转行求职</h4>
+      <p style="font-size:.78rem">想换个行业发展</p>
+    </div>
+    <div class="usecase-card" onclick="setScene('experienced','有经验求职者','我是一名有5年开发经验的工程师，想找更好的机会')">
+      <div class="uc-icon">🚀</div>
+      <h4>有经验求职者</h4>
+      <p style="font-size:.78rem">积累经验，寻求突破</p>
+    </div>
+    <div class="usecase-card" onclick="setScene('promotion','职位晋升','我在公司工作3年了，想申请高级岗位或管理职位')">
+      <div class="uc-icon">💎</div>
+      <h4>职位晋升</h4>
+      <p style="font-size:.78rem">升职加薪更进一步</p>
+    </div>
+  </div>
+  <input type="hidden" name="scene" id="scene-input" value="">
+</div>
+
+<!-- Divider -->
+<div style="max-width:680px;margin:40px auto;text-align:center">
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+    <span style="color:var(--text-muted);font-size:.82rem">或者上传已有简历进行优化</span>
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+  </div>
+  <a href="javascript:void(0)" onclick="window.openLoginModal()" class="btn btn-outline btn-lg" style="margin-top:20px">上传简历优化 →（需登录）</a>
+</div>
+
+<!-- Features preview -->
+<section class="section section-gray" style="padding:48px 0">
+  <div class="section-header reveal">
+    <h2>为什么选择我们</h2>
+    <p>AI 驱动的智能简历工具</p>
+  </div>
+  <div class="feature-grid reveal">
+    <div class="feature-card">
+      <div class="fc-icon fc-icon-blue">🤖</div>
+      <h3>对话式生成</h3>
+      <p>告诉AI你的情况，自动生成专业简历，不需要任何排版经验</p>
+    </div>
+    <div class="feature-card">
+      <div class="fc-icon fc-icon-purple">📊</div>
+      <h3>智能评分优化</h3>
+      <p>上传已有简历，五维度评分，给出具体改进建议并自动优化</p>
+    </div>
+    <div class="feature-card">
+      <div class="fc-icon fc-icon-green">🎯</div>
+      <h3>JD 岗位匹配</h3>
+      <p>对比目标岗位，分析匹配度，针对性地改进简历</p>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="section">
+  <div class="cta-banner reveal">
+    <h2>免费开始使用</h2>
+    <p>新用户注册即送 3 次免费分析</p>
+    <a href="/register" class="btn-white">免费注册 →</a>
+  </div>
+</section>
+
+{% else %}
+<!-- ================================================================
+     LOGGED IN: Chat dialog + optimization tools
+     ================================================================ -->
+
+<div class="flex-row" style="gap:10px;margin-bottom:20px;flex-wrap:wrap">
+  <a href="/" class="btn btn-sm" style="font-weight:700;background:var(--primary);color:#fff;border:none">AI 简历生成</a>
+  <a href="#optimize-section" class="btn btn-outline btn-sm">AI 简历优化</a>
+  <a href="/history" class="btn btn-outline btn-sm">历史记录</a>
+</div>
+
+<section style="padding:20px 0 10px">
+  <h2 style="font-size:1.4rem;font-weight:800;text-align:center;margin-bottom:6px">
+    与简历AI对话，轻松完成简历生成
+  </h2>
+  <p style="text-align:center;color:var(--text-secondary);margin-bottom:24px;font-size:.9rem">
+    告诉AI你的情况，免费帮你生成简历
+  </p>
+</section>
+
+<!-- Chat Dialog -->
+<div style="max-width:680px;margin:0 auto 32px">
+  <form method="POST" action="/generate" id="gen-form">
+    <div class="card" style="padding:20px 24px">
+      <div style="position:relative">
+        <textarea name="user_input" id="user-input" class="form-control" rows="4"
+          placeholder="告诉简历AI你的情况，比如：我是一名前端开发工程师，3年经验，熟悉React和TypeScript..."
+          style="resize:none;font-size:.95rem;line-height:1.7;padding:14px 16px;border-radius:var(--radius-lg)"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitGen()}"></textarea>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+          <label for="gen-file" style="cursor:pointer;color:var(--text-muted);font-size:.82rem;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);transition:all var(--transition)">
+            <span>📎 上传文件</span>
+            <input type="file" id="gen-file" name="resume_file" style="display:none" accept=".pdf,.docx,.doc,.txt,.md" onchange="onGenFileSelected(this)">
+          </label>
+          <span id="gen-file-name" style="font-size:.78rem;color:var(--primary);font-weight:500"></span>
+          <div style="font-size:.75rem;color:var(--text-muted)">
+            Enter发送 | Shift+Enter换行 | Ctrl+V粘贴
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:right;margin-top:12px">
+        <button type="submit" class="btn btn-primary" style="padding:10px 28px;font-size:.92rem" id="gen-btn">
+          发送
+        </button>
+      </div>
+
+      {% if gen_error %}
+      <div style="background:#fee2e2;color:#b91c1c;padding:8px 14px;border-radius:var(--radius);margin-top:10px;font-size:.84rem">{{ gen_error }}</div>
+      {% endif %}
+    </div>
+  </form>
+
+  <!-- Scene cards -->
+  <p style="text-align:center;margin:18px 0 12px;font-size:.85rem;color:var(--text-secondary)">或选择场景快速开始</p>
+  <div class="usecase-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+    <div class="usecase-card" onclick="setScene('fresh_graduate','应届毕业生','我是今年刚毕业的大学生，想找一份产品经理的工作')">
+      <div class="uc-icon">🎓</div>
+      <h4>应届毕业生</h4>
+      <p style="font-size:.78rem">刚毕业，找第一份工作</p>
+    </div>
+    <div class="usecase-card" onclick="setScene('career_change','转行求职','我有3年销售经验，想转行做UI设计师')">
+      <div class="uc-icon">🔄</div>
+      <h4>转行求职</h4>
+      <p style="font-size:.78rem">换个行业发展</p>
+    </div>
+    <div class="usecase-card" onclick="setScene('experienced','有经验求职者','我有5年开发经验，想找更好的机会')">
+      <div class="uc-icon">🚀</div>
+      <h4>有经验求职者</h4>
+      <p style="font-size:.78rem">积累经验，寻求突破</p>
+    </div>
+    <div class="usecase-card" onclick="setScene('promotion','职位晋升','我在公司工作3年了，想申请高级或管理岗位')">
+      <div class="uc-icon">💎</div>
+      <h4>职位晋升</h4>
+      <p style="font-size:.78rem">升职加薪更进一步</p>
+    </div>
+  </div>
+  <input type="hidden" name="scene" id="scene-input" value="">
+</div>
+
+<!-- Divider -->
+<div style="max-width:680px;margin:44px auto 28px;text-align:center" id="optimize-section">
+  <div style="display:flex;align-items:center;gap:16px">
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+    <span style="color:var(--text-muted);font-size:.82rem">或者上传已有简历优化</span>
+    <div style="flex:1;height:1px;background:var(--border)"></div>
+  </div>
+</div>
+
+<!-- Resume Upload & Optimize -->
+<div style="max-width:680px;margin:0 auto 60px">
+  <form method="POST" action="/analyze" enctype="multipart/form-data" id="analyze-form">
+    <div class="card" style="padding:24px">
+      <h4 style="font-weight:700;margin-bottom:14px">📄 上传简历进行优化分析</h4>
+      <input type="file" name="resume_file" id="opt-file" style="display:none" accept=".pdf,.docx,.doc,.txt,.md" onchange="onOptFileSelected(this)">
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('opt-file').click()">
+        <div class="dz-icon">📂</div>
+        <div class="dz-text">点击选择文件或拖拽到此处</div>
+        <div class="dz-hint">PDF / DOCX / TXT，最大16MB</div>
+        <div class="file-preview" id="opt-file-preview" style="display:none">
+          📄 <span id="opt-file-name"></span>
+          <button type="button" onclick="clearOptFile(event)" style="background:none;border:none;cursor:pointer;color:var(--danger);font-weight:700;font-size:1rem;padding:0 4px">×</button>
+        </div>
+      </div>
+      <div style="text-align:center;margin:12px 0;color:var(--text-muted);font-size:.82rem">— 或 —</div>
+      <textarea name="resume_text" class="form-control" rows="6" placeholder="粘贴简历内容..."></textarea>
+      <div class="form-group" style="margin-top:14px;margin-bottom:0">
+        <label style="font-size:.82rem">职位描述（可选）</label>
+        <textarea name="jd_text" class="form-control" rows="3" placeholder="粘贴目标JD，获取匹配分析"></textarea>
+      </div>
+      <div style="text-align:center;margin-top:14px">
+        <button type="submit" class="btn btn-primary" style="padding:10px 36px" id="submit-btn">🚀 开始分析优化</button>
+        <p style="margin-top:8px;font-size:.78rem;color:var(--text-muted)">
+          剩余免费: <strong>{{ session.free_quota }}</strong> 次
+          {% if session.free_quota <= 0 and not session.is_paid %}
+          — <a href="/pricing">升级无限次</a>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% endif %}
+
+<script>
+{% if not session.user_id or session.user_id %}
+// Scene selection
+function setScene(scene, title, prompt) {
+  document.getElementById('user-input').value = prompt;
+  document.getElementById('scene-input').value = scene;
+  document.getElementById('user-input').focus();
+}
+
+// File selection for gen
+function onGenFileSelected(input) {
+  if (input.files.length > 0) {
+    document.getElementById('gen-file-name').textContent = input.files[0].name;
+  }
+}
+
+// Submit gen
+function submitGen() {
+  var btn = document.getElementById('gen-btn');
+  btn.textContent = '⏳ 生成中...';
+  btn.disabled = true;
+  document.getElementById('gen-form').submit();
+}
+{% endif %}
+
+{% if session.user_id %}
+// Optimize drag & drop
+(function() {
+  var dz = document.getElementById('drop-zone');
+  var fi = document.getElementById('opt-file');
+  if (!dz || !fi) return;
+  ['dragenter','dragover'].forEach(function(e) {
+    dz.addEventListener(e, function(ev) { ev.preventDefault(); dz.classList.add('drag-over'); });
+  });
+  ['dragleave','drop'].forEach(function(e) {
+    dz.addEventListener(e, function(ev) { ev.preventDefault(); dz.classList.remove('drag-over'); });
+  });
+  dz.addEventListener('drop', function(e) {
+    var files = e.dataTransfer.files;
+    if (files.length > 0) { fi.files = files; showOptPreview(files[0]); }
+  });
+  document.addEventListener('paste', function(e) {
+    var items = e.clipboardData.items;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].kind === 'file') {
+        var dt = new DataTransfer();
+        dt.items.add(items[i].getAsFile());
+        fi.files = dt.files;
+        showOptPreview(items[i].getAsFile());
+        break;
+      }
+    }
+  });
+})();
+function onOptFileSelected(input) { if (input.files.length > 0) showOptPreview(input.files[0]); }
+function showOptPreview(file) {
+  var p = document.getElementById('opt-file-preview');
+  var n = document.getElementById('opt-file-name');
+  if (p && n) { p.style.display = 'inline-flex'; n.textContent = file.name; }
+}
+function clearOptFile(e) { e.stopPropagation(); document.getElementById('opt-file').value = ''; document.getElementById('opt-file-preview').style.display = 'none'; }
+document.getElementById('analyze-form').addEventListener('submit', function() {
+  var btn = document.getElementById('submit-btn');
+  btn.textContent = '⏳ 分析中...';
+  btn.disabled = true;
+  btn.style.opacity = '.7';
+});
+{% endif %}
+</script>
+{% endblock %}

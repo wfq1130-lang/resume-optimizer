@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>导出简历</title>
+<style>
+  @page {
+    size: A4;
+    margin: 2cm 2.2cm;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #1e293b;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 20px 28px;
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .toolbar {
+    position: fixed;
+    top: 16px;
+    right: 24px;
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+  }
+  .toolbar button {
+    padding: 10px 22px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all .2s;
+  }
+  .btn-print {
+    background: #4f6ef7;
+    color: #fff;
+  }
+  .btn-print:hover {
+    background: #3a54d4;
+    box-shadow: 0 4px 12px rgba(79,110,247,.3);
+  }
+  .btn-back {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .btn-back:hover {
+    background: #e2e8f0;
+  }
+  .resume-content {
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  @media print {
+    .toolbar { display: none; }
+    body { padding: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="btn-back" onclick="history.back()">← 返回</button>
+  <button class="btn-print" onclick="window.print()">🖨️ 打印 / 保存PDF</button>
+</div>
+
+<div class="resume-content">{{ optimized_resume }}</div>
+
+<script>
+  // Auto-trigger print
+  setTimeout(function() {
+    window.print();
+  }, 500);
+</script>
+</body>
+</html>

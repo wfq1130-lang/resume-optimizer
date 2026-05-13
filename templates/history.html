@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block title %}历史记录 — AI简历优化器{% endblock %}
+{% block content %}
+
+<div class="flex-between mb-12">
+  <div class="page-title">历史分析记录</div>
+  <a href="/" class="btn btn-primary btn-sm">+ 新分析</a>
+</div>
+
+{% if analyses %}
+  {% for a in analyses %}
+  <a href="/result/{{ a.id }}" style="text-decoration:none;color:inherit;display:block">
+    <div class="card">
+      <div class="flex-between">
+        <div>
+          <strong style="font-size:1rem">{{ a.resume_filename or '粘贴的简历' }}</strong>
+          <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">{{ a.created_at }}</div>
+        </div>
+        <div class="flex-row" style="gap:16px">
+          {% if a.overall_score is not none %}
+          <div style="text-align:center">
+            <div style="font-size:1.5rem;font-weight:800;color:var(--primary)">{{ a.overall_score }}</div>
+            <div style="font-size:.7rem;color:var(--text-muted)">综合评分</div>
+          </div>
+          {% endif %}
+          {% if a.jd_match_score is not none %}
+          <div style="text-align:center">
+            <div style="font-size:1.5rem;font-weight:800;color:{{ 'var(--success)' if a.jd_match_score >=70 else 'var(--warning)' }}">{{ a.jd_match_score }}</div>
+            <div style="font-size:.7rem;color:var(--text-muted)">JD匹配</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+{% else %}
+  <div class="card empty">
+    <div class="icon">📋</div>
+    <div>还没有分析记录</div>
+    <a href="/" class="btn btn-primary mt-12">开始第一次分析</a>
+  </div>
+{% endif %}
+
+{% endblock %}

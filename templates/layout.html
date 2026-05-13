@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}AI简历优化器{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div class="cursor-glow" id="cursor-glow"></div>
+<div class="toast-container" id="toast-container"></div>
+
+<div class="header">
+  <div style="display:flex;align-items:center;gap:16px">
+    <a href="/" class="logo">AI简历优化器</a>
+    {% if session.user_id %}
+    <a href="/history" style="font-size:.82rem;color:#666;text-decoration:none;font-weight:500">历史记录</a>
+    {% endif %}
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    {% if session.user_id %}
+    <span class="user">
+      {{ session.realname }}
+      <span class="badge badge-info" style="font-size:.7rem">剩余 {{ session.free_quota }} 次</span>
+      {% if session.is_paid %}
+      <span class="badge badge-success" style="font-size:.7rem">付费用户</span>
+      {% endif %}
+      <a href="/logout">退出</a>
+    </span>
+    {% else %}
+    <a href="/login" class="btn btn-outline btn-sm">登录</a>
+    <a href="/register" class="btn btn-primary btn-sm">免费注册</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="container">
+{% block content %}{% endblock %}
+</div>
+
+{% if not hub_footer|default(false) %}
+<footer class="site-footer">
+  <div style="max-width:1000px;margin:0 auto;text-align:center">
+    <div style="font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:6px">AI简历优化器</div>
+    <div style="font-size:.85rem;color:#94a3b8;margin-bottom:12px">让求职更简单</div>
+    <div style="font-size:.85rem;color:#94a3b8;margin-bottom:20px">
+      专业的AI简历优化工具，智能分析、优化措辞、匹配岗位，助力求职者脱颖而出。
+    </div>
+    <div style="margin-bottom:16px">
+      <span style="color:#94a3b8;font-size:.84rem">联系我们：</span>
+      <a href="mailto:wfq101630@163.com" style="color:#cbd5e1;font-size:.85rem;text-decoration:none">wfq101630@163.com</a>
+    </div>
+    <div style="font-size:.8rem;color:#64748b">
+      <a href="/privacy" style="color:#64748b;text-decoration:none">隐私政策</a>
+      <span style="margin:0 10px">|</span>
+      <a href="/terms" style="color:#64748b;text-decoration:none">服务条款</a>
+    </div>
+  </div>
+</footer>
+{% endif %}
+
+<!-- Login Modal -->
+{% if not session.user_id %}
+<div class="modal-overlay" id="login-modal">
+  <div class="modal" style="max-width:400px">
+    <div style="text-align:right;margin-bottom:6px">
+      <button onclick="closeLoginModal()" style="background:none;border:none;cursor:pointer;font-size:1.4rem;color:var(--text-muted);line-height:1">&times;</button>
+    </div>
+    <h3 style="text-align:center;margin-bottom:14px;font-weight:700">登录</h3>
+    <div id="login-modal-error" class="error" style="display:none;margin-bottom:12px"></div>
+    <form id="login-modal-form" onsubmit="return loginViaModal(event)">
+      <div class="form-group">
+        <label>账号 / 手机号 / 邮箱</label>
+        <input type="text" name="account" class="form-control" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>密码</label>
+        <input type="password" name="password" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:10px">登 录</button>
+    </form>
+    <div style="text-align:center;margin-top:12px;font-size:.82rem">
+      <a href="/forgot" style="color:var(--text-muted)">忘记密码？</a>
+      <span style="margin:0 8px;color:var(--border)">|</span>
+      <a href="/register">注册新账号</a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="confetti-container" id="confetti-container"></div>
+
+<script>
+// Cursor glow
+(function() {
+  var glow = document.getElementById('cursor-glow');
+  if (!glow) return;
+  var mx = 0, my = 0, cx = window.innerWidth/2, cy = window.innerHeight/2;
+  var rafId = null, idleTimer = null, running = false;
+  document.addEventListener('mousemove', function(e) {
+    mx = e.clientX; my = e.clientY;
+    if (!running) { running = true; glow.style.opacity = '1'; rafId = requestAnimationFrame(animate); }
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function() { running = false; if (rafId) cancelAnimationFrame(rafId); }, 1000);
+  }, { passive: true });
+  document.addEventListener('mouseleave', function() { glow.style.opacity = '0'; running = false; if (rafId) cancelAnimationFrame(rafId); });
+  document.addEventListener('mouseenter', function() { if (running) glow.style.opacity = '1'; });
+  function animate() { cx += (mx-cx)*.08; cy += (my-cy)*.08; glow.style.left=cx+'px'; glow.style.top=cy+'px'; if (running) rafId=requestAnimationFrame(animate); }
+})();
+
+// Toast
+window.showToast = function(msg, type) {
+  type = type || 'info';
+  var c = document.getElementById('toast-container');
+  var t = document.createElement('div');
+  t.className = 'toast toast-' + type + ' stay';
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(function() { t.style.animation='toastOut .3s ease-in forwards'; setTimeout(function(){ if(t.parentNode)t.parentNode.removeChild(t); },300); }, 3500);
+  t.addEventListener('click', function() { t.style.animation='toastOut .3s ease-in forwards'; setTimeout(function(){ if(t.parentNode)t.parentNode.removeChild(t); },300); });
+};
+
+// Button ripple
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.btn');
+  if (!btn) return;
+  var ripple = document.createElement('span');
+  var rect = btn.getBoundingClientRect();
+  var size = Math.max(rect.width, rect.height);
+  ripple.style.cssText = 'position:absolute;width:'+size+'px;height:'+size+'px;left:'+(e.clientX-rect.left-size/2)+'px;top:'+(e.clientY-rect.top-size/2)+'px;border-radius:50%;background:rgba(255,255,255,.35);transform:scale(0);animation:btnRipple .6s ease-out forwards;pointer-events:none';
+  btn.appendChild(ripple);
+  setTimeout(function() { if (ripple.parentNode) ripple.parentNode.removeChild(ripple); }, 600);
+});
+var rs = document.createElement('style');
+rs.textContent = '@keyframes btnRipple{to{transform:scale(4);opacity:0}}';
+document.head.appendChild(rs);
+
+// Scroll reveal
+(function() {
+  var reveals = document.querySelectorAll('.reveal');
+  if (!reveals.length) return;
+  if ('IntersectionObserver' in window) {
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) { if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); } });
+    }, { threshold: 0.1 });
+    reveals.forEach(function(el) { observer.observe(el); });
+  } else {
+    reveals.forEach(function(el) { el.classList.add('visible'); });
+  }
+})();
+
+// Login modal functions
+window.openLoginModal = function() {
+  var modal = document.getElementById('login-modal');
+  if (modal) modal.classList.add('active');
+};
+window.closeLoginModal = function() {
+  var modal = document.getElementById('login-modal');
+  if (modal) modal.classList.remove('active');
+};
+
+async function loginViaModal(e) {
+  e.preventDefault();
+  var form = document.getElementById('login-modal-form');
+  var data = new FormData(form);
+  var resp = await fetch('/login', { method: 'POST', body: data, redirect: 'manual' });
+
+  if (resp.status === 302 || resp.redirected) {
+    location.reload();
+  } else {
+    var text = await resp.text();
+    var errMatch = text.match(/class="error"[^>]*>([^<]+)</);
+    var errEl = document.getElementById('login-modal-error');
+    if (errMatch) {
+      errEl.textContent = errMatch[1];
+      errEl.style.display = 'block';
+    } else {
+      errEl.textContent = '登录失败，请重试';
+      errEl.style.display = 'block';
+    }
+  }
+}
+
+// Close modal by clicking overlay
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'login-modal') closeLoginModal();
+});
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 — AI简历优化器</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="header">
+  <div style="display:flex;align-items:center;gap:16px">
+    <a href="/" class="logo">AI简历优化器</a>
+    <span class="badge badge-error" style="font-size:.7rem">管理员</span>
+  </div>
+  <div class="user">{{ session.realname }} <a href="/logout">退出</a></div>
+</div>
+
+<div class="container" style="max-width:1100px;padding:24px">
+  <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:20px">管理后台</h1>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card"><div class="value">{{ total_users }}</div><div class="label">总用户</div></div>
+    <div class="stat-card"><div class="value" style="color:var(--success)">{{ paid_users }}</div><div class="label">付费用户</div></div>
+    <div class="stat-card"><div class="value">{{ total_analyses }}</div><div class="label">总分析次数</div></div>
+  </div>
+
+  <!-- Generate Codes -->
+  <div class="card" style="margin-bottom:24px">
+    <h4 style="font-weight:700;margin-bottom:14px">🎫 生成兑换码</h4>
+    <form method="POST" action="/admin/generate-codes" class="flex-row" style="align-items:flex-end">
+      <div class="form-group" style="margin-bottom:0">
+        <label>数量</label>
+        <input type="number" name="count" value="5" min="1" max="50" class="form-control" style="width:100px">
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>每个码赠送次数</label>
+        <input type="number" name="quota" value="10" min="1" max="999" class="form-control" style="width:100px">
+      </div>
+      <button type="submit" class="btn btn-primary">生成</button>
+    </form>
+    {% if codes %}
+    <div style="margin-top:16px">
+      <h5 style="font-weight:600;margin-bottom:8px">最近生成的兑换码</h5>
+      <table>
+        <thead><tr><th>兑换码</th><th>赠送次数</th><th>状态</th><th>使用者</th></tr></thead>
+        <tbody>
+          {% for c in codes %}
+          <tr>
+            <td><strong style="font-family:monospace;font-size:.9rem">{{ c.code }}</strong></td>
+            <td>{{ c.quota_add }}</td>
+            <td>{{ '<span class="badge badge-success">可用</span>'|safe if not c.is_used else '<span class="badge badge-error">已用</span>'|safe }}</td>
+            <td>{{ c.used_by or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- User List -->
+  <div class="card" style="padding:0;overflow-x:auto">
+    <h4 style="padding:16px 20px 12px;font-weight:700">👥 用户管理</h4>
+    <table>
+      <thead><tr><th>ID</th><th>账号</th><th>手机</th><th>邮箱</th><th>剩余次数</th><th>付费</th><th>注册时间</th><th>操作</th></tr></thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{ u.id }}</td>
+          <td><strong>{{ u.username }}</strong></td>
+          <td style="font-size:.82rem">{{ u.phone or '-' }}</td>
+          <td style="font-size:.82rem">{{ u.email or '-' }}</td>
+          <td style="font-weight:700;color:var(--primary)">{{ u.free_quota }}</td>
+          <td>{{ '<span class="badge badge-success">是</span>'|safe if u.is_paid else '<span class="badge badge-warning">否</span>'|safe }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted)">{{ u.created_at }}</td>
+          <td>
+            <div class="flex-row" style="gap:6px">
+              <!-- Add quota -->
+              <form method="POST" action="/admin/user/{{ u.id }}/add-quota" style="display:flex;gap:4px;align-items:center">
+                <input type="number" name="amount" value="10" min="1" max="999" style="width:50px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:.8rem">
+                <button type="submit" class="btn btn-primary btn-sm" style="padding:3px 10px">加次数</button>
+              </form>
+              <!-- Toggle paid -->
+              <form method="POST" action="/admin/user/{{ u.id }}/toggle-paid">
+                <button type="submit" class="btn btn-sm {{ 'btn-outline' if u.is_paid else 'btn-success' }}" style="padding:3px 10px">
+                  {{ '取消付费' if u.is_paid else '设为付费' }}
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block title %}兑换码 — AI简历优化器{% endblock %}
+{% block content %}
+
+<div class="page-title" style="justify-content:center;margin-bottom:8px">兑换码充值</div>
+<p style="text-align:center;color:var(--text-muted);margin-bottom:24px">
+  输入兑换码获取更多分析次数
+</p>
+
+<div class="card" style="max-width:420px;margin:0 auto;padding:24px">
+  {% if success %}
+  <div class="success-msg" style="text-align:center;font-size:.95rem;font-weight:600">{{ success }}</div>
+  <div style="text-align:center;margin-top:16px">
+    <a href="/" class="btn btn-primary">开始使用</a>
+  </div>
+  {% else %}
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="POST">
+    <div class="form-group">
+      <label>兑换码</label>
+      <input type="text" name="code" class="form-control" placeholder="输入兑换码，如 RVXXXXXXXX" required autofocus
+             style="font-family:monospace;font-size:1rem;text-transform:uppercase">
+    </div>
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:10px">兑 换</button>
+  </form>
+  {% endif %}
+</div>
+
+<div style="text-align:center;margin-top:20px;font-size:.84rem;color:var(--text-muted)">
+  还没有兑换码？<a href="mailto:wfq101630@163.com">联系客服购买</a>
+</div>
+
+{% endblock %}

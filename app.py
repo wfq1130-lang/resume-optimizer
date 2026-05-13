@@ -2,7 +2,7 @@ import json, os, uuid
 from functools import wraps
 from datetime import datetime, timedelta
 
-from flask import Flask, g, jsonify, redirect, render_template, request, session, send_file, url_for
+from flask import Flask, g, jsonify, make_response, redirect, render_template, request, session, send_file, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -322,7 +322,7 @@ def terms():
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    """AI resume generation — works for both guests and logged-in users"""
+    """AI resume generation — 1 free for guests, quota-limited for users"""
     user_input = request.form.get("user_input", "").strip()
     scene = request.form.get("scene", "").strip()
 
@@ -332,12 +332,19 @@ def generate():
     if len(user_input) > 3000:
         user_input = user_input[:3000]
 
+    # Limit guest usage to 1 free generation (tracked by cookie)
+    if "user_id" not in session:
+        guest_count = int(request.cookies.get("guest_gen_count", 0))
+        if guest_count >= 1:
+            return render_template("index.html",
+                gen_error="免费次数已用完（每人限1次），请注册登录后继续使用")
+
     result = generate_resume(user_input, scene)
 
     if "error" in result:
         return render_template("index.html", gen_error=result["error"])
 
-    # For logged-in users, save to history as well
+    # Save for logged-in users
     analysis_id = None
     if "user_id" in session:
         analysis_id = save_analysis(
@@ -353,18 +360,120 @@ def generate():
             jd_analysis=""
         )
 
-    return render_template("generate_result.html",
+    resp = make_response(render_template("generate_result.html",
         resume_text=result["resume_text"],
         tips=result["tips"],
         user_input=user_input,
         scene=scene,
         analysis_id=analysis_id
-    )
+    ))
+
+    # Increment guest counter
+    if "user_id" not in session:
+        guest_count = int(request.cookies.get("guest_gen_count", 0))
+        resp.set_cookie("guest_gen_count", str(guest_count + 1), max_age=60*60*24*365)
+
+    return resp
 
 
 @app.route("/guide")
 def guide():
     return render_template("guide.html")
+
+
+# -- Admin ------------------------------------------------------
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        user = get_user_by_id(session["user_id"])
+        if not user or not user["is_admin"]:
+            return "Access denied", 403
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/admin")
+@admin_required
+def admin():
+    db = get_db()
+    users = db.execute("SELECT * FROM users ORDER BY created_at DESC").fetchall()
+    total_users = len(users)
+    paid_users = sum(1 for u in users if u["is_paid"])
+    total_analyses = db.execute("SELECT COUNT(*) as c FROM analyses").fetchone()["c"]
+    codes = db.execute("SELECT * FROM redeem_codes ORDER BY created_at DESC LIMIT 20").fetchall()
+    db.close()
+    return render_template("admin.html",
+        users=users, total_users=total_users, paid_users=paid_users,
+        total_analyses=total_analyses, codes=codes
+    )
+
+
+@app.route("/admin/user/<int:user_id>/add-quota", methods=["POST"])
+@admin_required
+def admin_add_quota(user_id):
+    amount = int(request.form.get("amount", 10))
+    db = get_db()
+    db.execute("UPDATE users SET free_quota = free_quota + ? WHERE id=?", (amount, user_id))
+    db.commit()
+    db.close()
+    from flask import flash
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/user/<int:user_id>/toggle-paid", methods=["POST"])
+@admin_required
+def admin_toggle_paid(user_id):
+    db = get_db()
+    user = db.execute("SELECT is_paid FROM users WHERE id=?", (user_id,)).fetchone()
+    if user:
+        new_val = 0 if user["is_paid"] else 1
+        db.execute("UPDATE users SET is_paid=? WHERE id=?", (new_val, user_id))
+        db.commit()
+    db.close()
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/generate-codes", methods=["POST"])
+@admin_required
+def admin_generate_codes():
+    count = int(request.form.get("count", 5))
+    quota = int(request.form.get("quota", 10))
+    db = get_db()
+    import secrets
+    codes = []
+    for _ in range(count):
+        code = "RV" + secrets.token_hex(4).upper()
+        db.execute("INSERT INTO redeem_codes (code, quota_add) VALUES (?, ?)", (code, quota))
+        codes.append(code)
+    db.commit()
+    db.close()
+    return render_template("admin_codes.html", codes=codes, quota=quota)
+
+
+@app.route("/redeem", methods=["GET", "POST"])
+@login_required
+def redeem():
+    if request.method == "POST":
+        code = request.form.get("code", "").strip().upper()
+        db = get_db()
+        row = db.execute("SELECT * FROM redeem_codes WHERE code=? AND is_used=0", (code,)).fetchone()
+        if not row:
+            db.close()
+            return render_template("redeem.html", error="兑换码无效或已使用")
+
+        db.execute("UPDATE redeem_codes SET is_used=1, used_by=?, used_at=datetime('now') WHERE id=?",
+                   (session["user_id"], row["id"]))
+        db.execute("UPDATE users SET free_quota = free_quota + ? WHERE id=?",
+                   (row["quota_add"], session["user_id"]))
+        db.commit()
+        session["free_quota"] = session["free_quota"] + row["quota_add"]
+        db.close()
+        return render_template("redeem.html", success=f"兑换成功！获得 {row['quota_add']} 次分析额度")
+
+    return render_template("redeem.html")
 
 
 # -- Health check ------------------------------------------------

@@ -1,0 +1,31 @@
+<view class="container">
+  <view class="card">
+    <view class="card-title">上传简历</view>
+    <view class="form-group">
+      <text class="form-label">选择简历文件 (PDF/Word/TXT)</text>
+      <view class="upload-area" bind:tap="chooseFile">
+        <text wx:if="{{!fileName}}" style="color:var(--text-muted)">点击选择文件</text>
+        <text wx:else style="color:var(--primary);font-weight:600">{{fileName}}</text>
+      </view>
+    </view>
+
+    <view class="form-group">
+      <text class="form-label">或直接粘贴简历内容</text>
+      <textarea class="form-textarea" placeholder="粘贴简历文本内容..." value="{{resumeText}}" bind:input="onResumeInput" />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="card-title">职位描述 (可选)</view>
+    <view class="form-group">
+      <text class="form-label">粘贴目标JD，获得匹配度分析</text>
+      <textarea class="form-textarea" placeholder="粘贴职位描述..." value="{{jdText}}" bind:input="onJdInput" />
+    </view>
+  </view>
+
+  <button class="btn btn-primary" bind:tap="submitAnalyze" loading="{{loading}}" disabled="{{loading}}">
+    {{loading ? '分析中...' : '开始分析'}}
+  </button>
+
+  <view wx:if="{{error}}" class="error-msg" style="text-align:center;margin-top:16rpx">{{error}}</view>
+</view>

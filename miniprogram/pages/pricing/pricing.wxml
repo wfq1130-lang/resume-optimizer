@@ -1,0 +1,52 @@
+<view class="container">
+  <view class="card">
+    <view class="card-title">购买套餐</view>
+    <view style="color:var(--text-muted);font-size:28rpx;margin-bottom:24rpx;text-align:center">
+      剩余 <text style="color:var(--primary);font-weight:700">{{quota}}</text> 次免费分析
+    </view>
+
+    <!-- Single -->
+    <view class="plan-card">
+      <view class="plan-header">单次购买</view>
+      <view class="plan-price">&yen;9.9 <text class="plan-unit">/次</text></view>
+      <view class="plan-features">
+        <view>智能评分分析</view>
+        <view>多维度打分</view>
+        <view>优化建议 + 重写</view>
+      </view>
+      <button class="btn btn-outline" bind:tap="buy" data-plan="single">立即购买</button>
+    </view>
+
+    <!-- Monthly -->
+    <view class="plan-card" style="border-color:var(--primary);background:#faf5ff">
+      <view class="plan-header" style="color:var(--primary);font-weight:700">包月无限次 (推荐)</view>
+      <view class="plan-price" style="color:var(--primary)">&yen;29.9 <text class="plan-unit">/月</text></view>
+      <view class="plan-features">
+        <view>无限次简历分析</view>
+        <view>无限次JD匹配</view>
+        <view>优先处理队列</view>
+        <view>导出优化简历</view>
+      </view>
+      <button class="btn btn-primary" bind:tap="buy" data-plan="monthly">立即订阅</button>
+    </view>
+  </view>
+
+  <!-- Payment Modal -->
+  <view class="payment-mask" wx:if="{{showPayment}}" bind:tap="closePayment">
+    <view class="payment-modal" catch:tap="">
+      <view class="card-title">{{payPlanName}}</view>
+      <view style="color:var(--text-muted);margin-bottom:16rpx">{{payAmount}}</view>
+
+      <image wx:if="{{qrCode}}" src="{{qrCode}}" style="width:360rpx;height:360rpx;margin:0 auto;display:block" mode="aspectFit" />
+      <view wx:elif="{{mockMode}}" style="text-align:center;padding:32rpx">
+        <text style="font-weight:600">开发模式</text>
+        <button class="btn btn-primary btn-sm" bind:tap="simulatePay" style="margin-top:24rpx">模拟支付</button>
+      </view>
+      <view wx:else style="text-align:center;color:var(--text-muted);padding:32rpx">生成二维码中...</view>
+
+      <view class="{{payStatus==='paid'?'success-msg':'error-msg'}}" wx:if="{{payMsg}}" style="text-align:center;margin-top:16rpx">{{payMsg}}</view>
+
+      <button class="btn btn-outline btn-sm" bind:tap="closePayment" style="margin-top:24rpx">关闭</button>
+    </view>
+  </view>
+</view>

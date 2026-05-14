@@ -1,0 +1,49 @@
+<view class="container">
+  <view class="card">
+    <view class="score-circle">
+      <text class="score-number">{{data.overall_score}}</text>
+      <text class="score-label">综合得分</text>
+    </view>
+
+    <view class="score-grid" wx:if="{{scores.length}}">
+      <view class="score-item" wx:for="{{scores}}" wx:key="name">
+        <text class="score-item-name">{{item.name}}</text>
+        <text class="score-item-value">{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{data.optimized_resume}}">
+    <view class="card-title">优化后的简历</view>
+    <view style="white-space:pre-wrap;font-size:28rpx;line-height:1.8;background:var(--bg);padding:24rpx;border-radius:var(--radius)">{{data.optimized_resume}}</view>
+  </view>
+
+  <view class="card" wx:if="{{suggestions.length}}">
+    <view class="card-title">改进建议</view>
+    <view class="tips-list">
+      <view class="tips-list-item" wx:for="{{suggestions}}" wx:key="*this">
+        {{index + 1}}. {{item}}
+      </view>
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{jd}}">
+    <view class="card-title">JD匹配度: {{jd.match_score}}分</view>
+    <view wx:if="{{jd.matched_points && jd.matched_points.length}}">
+      <text style="font-weight:600;color:var(--success)">匹配的优势：</text>
+      <view class="tips-list">
+        <view class="tips-list-item" wx:for="{{jd.matched_points}}" wx:key="*this">{{item}}</view>
+      </view>
+    </view>
+    <view wx:if="{{jd.gap_points && jd.gap_points.length}}" style="margin-top:16rpx">
+      <text style="font-weight:600;color:var(--warning)">需要补足的差距：</text>
+      <view class="tips-list">
+        <view class="tips-list-item" wx:for="{{jd.gap_points}}" wx:key="*this">{{item}}</view>
+      </view>
+    </view>
+    <view wx:if="{{jd.improvement_plan}}" style="margin-top:16rpx">
+      <text style="font-weight:600">改进计划：</text>
+      <text style="color:var(--text-secondary)">{{jd.improvement_plan}}</text>
+    </view>
+  </view>
+</view>

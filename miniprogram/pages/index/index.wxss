@@ -1,0 +1,8 @@
+.upload-area {
+  width: 100%;
+  padding: 48rpx 24rpx;
+  border: 3rpx dashed var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+  background: #fafafa;
+}

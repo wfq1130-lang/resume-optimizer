@@ -1,0 +1,20 @@
+.scene-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.scene-tab {
+  padding: 12rpx 24rpx;
+  border-radius: 32rpx;
+  font-size: 26rpx;
+  background: var(--bg);
+  color: var(--text-secondary);
+  border: 2rpx solid var(--border);
+}
+
+.scene-tab.active {
+  background: #ede9fe;
+  color: var(--primary);
+  border-color: var(--primary);
+}

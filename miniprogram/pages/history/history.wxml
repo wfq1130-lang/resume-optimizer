@@ -1,0 +1,22 @@
+<view class="container">
+  <view wx:if="{{list.length === 0 && !loading}}" class="empty-state">
+    <view class="empty-state-icon">📋</view>
+    <view>还没有分析记录</view>
+    <view style="margin-top:12rpx;font-size:26rpx">快去优化一份简历吧</view>
+  </view>
+
+  <view wx:for="{{list}}" wx:key="id" class="card" bind:tap="goDetail" data-id="{{item.id}}">
+    <view style="display:flex;justify-content:space-between;align-items:center">
+      <view>
+        <view style="font-weight:600;margin-bottom:4rpx">{{item.resume_filename || '文本输入'}}</view>
+        <view style="font-size:24rpx;color:var(--text-muted)">{{item.created_at}}</view>
+      </view>
+      <view style="display:flex;align-items:center;gap:16rpx">
+        <view wx:if="{{item.jd_match_score}}" style="font-size:28rpx;font-weight:700;color:var(--primary)">匹配 {{item.jd_match_score}}</view>
+        <view style="font-size:36rpx;font-weight:700;color:var(--primary)">{{item.overall_score || '--'}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" style="text-align:center;padding:40rpx;color:var(--text-muted)">加载中...</view>
+</view>

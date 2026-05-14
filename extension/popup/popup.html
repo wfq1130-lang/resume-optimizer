@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>简历优化分析平台</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div class="popup">
+  <div class="popup-header">
+    <h1>简历优化分析平台</h1>
+    <span id="login-status" class="status-dot"></span>
+  </div>
+
+  <!-- Not logged in -->
+  <div id="not-logged-in">
+    <p style="color:#64748b;font-size:13px;text-align:center;margin-bottom:12px">登录后可进行分析</p>
+    <div class="form-group">
+      <input type="text" id="login-account" class="form-input" placeholder="账号/手机号/邮箱">
+    </div>
+    <div class="form-group">
+      <input type="password" id="login-password" class="form-input" placeholder="密码">
+    </div>
+    <button id="login-btn" class="btn btn-primary">登录</button>
+    <div id="login-error" class="error" style="display:none"></div>
+    <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:10px">
+      没有账号？<a href="#" id="go-register" style="color:#4f46e5">注册</a>
+    </p>
+  </div>
+
+  <!-- Register -->
+  <div id="register-form" style="display:none">
+    <p style="color:#64748b;font-size:13px;text-align:center;margin-bottom:12px">注册新账号</p>
+    <div class="form-group">
+      <input type="text" id="reg-username" class="form-input" placeholder="用户名 (3-20位)">
+    </div>
+    <div class="form-group">
+      <input type="password" id="reg-password" class="form-input" placeholder="密码 (至少6位)">
+    </div>
+    <div class="form-group">
+      <input type="email" id="reg-email" class="form-input" placeholder="邮箱 (可选)">
+    </div>
+    <button id="register-btn" class="btn btn-primary">注册</button>
+    <div id="reg-error" class="error" style="display:none"></div>
+    <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:10px">
+      已有账号？<a href="#" id="go-login" style="color:#4f46e5">登录</a>
+    </p>
+  </div>
+
+  <!-- Logged in -->
+  <div id="logged-in" style="display:none">
+    <div style="font-size:13px;color:#64748b;margin-bottom:12px;text-align:center">
+      <span id="user-name"></span> | 剩余 <strong id="user-quota" style="color:#4f46e5">0</strong> 次
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="optimize">优化简历</button>
+      <button class="tab" data-tab="generate">AI生成</button>
+      <button class="tab" data-tab="history">历史</button>
+    </div>
+
+    <!-- Optimize tab -->
+    <div id="tab-optimize" class="tab-content">
+      <div class="form-group">
+        <label>简历文件</label>
+        <input type="file" id="resume-file" class="form-input" accept=".pdf,.docx,.doc,.txt">
+      </div>
+      <div class="form-group">
+        <label>或粘贴简历内容</label>
+        <textarea id="resume-text" class="form-textarea" rows="4" placeholder="粘贴简历内容..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>职位描述 (可选)</label>
+        <textarea id="jd-text" class="form-textarea" rows="2" placeholder="粘贴JD，获得匹配度分析"></textarea>
+      </div>
+      <button id="analyze-btn" class="btn btn-primary">开始分析</button>
+      <div id="analyze-result" style="margin-top:10px;display:none"></div>
+    </div>
+
+    <!-- Generate tab -->
+    <div id="tab-generate" class="tab-content" style="display:none">
+      <div class="form-group">
+        <label>描述你的情况</label>
+        <textarea id="gen-input" class="form-textarea" rows="4" placeholder="描述经历、技能、求职意向..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>求职场景</label>
+        <select id="gen-scene" class="form-input">
+          <option value="">通用</option>
+          <option value="fresh_graduate">应届毕业</option>
+          <option value="career_change">转行求职</option>
+          <option value="experienced">资深经验</option>
+          <option value="promotion">寻求晋升</option>
+        </select>
+      </div>
+      <button id="generate-btn" class="btn btn-primary">AI生成</button>
+      <div id="gen-result" style="margin-top:10px;display:none"></div>
+    </div>
+
+    <!-- History tab -->
+    <div id="tab-history" class="tab-content" style="display:none">
+      <div id="history-list"></div>
+    </div>
+
+    <button id="logout-btn" class="btn btn-outline" style="margin-top:12px;width:100%;font-size:12px">退出登录</button>
+  </div>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<view class="container">
+  <view class="card">
+    <view class="card-title">AI智能生成简历</view>
+    <view class="form-group">
+      <text class="form-label">描述你的情况（经历、技能、求职意向等）</text>
+      <textarea class="form-textarea" placeholder="例如：我是一名3年经验的Java开发工程师，做过电商系统...有Spring Boot、微服务经验，想找一份高级工程师的工作..." value="{{userInput}}" bind:input="onInput" />
+    </view>
+
+    <view class="form-group">
+      <text class="form-label">求职场景 (可选)</text>
+      <view class="scene-tabs">
+        <view class="scene-tab {{scene==='fresh_graduate'?'active':''}}" bind:tap="selectScene" data-scene="fresh_graduate">应届毕业</view>
+        <view class="scene-tab {{scene==='career_change'?'active':''}}" bind:tap="selectScene" data-scene="career_change">转行求职</view>
+        <view class="scene-tab {{scene==='experienced'?'active':''}}" bind:tap="selectScene" data-scene="experienced">资深经验</view>
+        <view class="scene-tab {{scene==='promotion'?'active':''}}" bind:tap="selectScene" data-scene="promotion">寻求晋升</view>
+      </view>
+    </view>
+  </view>
+
+  <button class="btn btn-primary" bind:tap="submitGenerate" loading="{{loading}}" disabled="{{loading}}">
+    {{loading ? '生成中...' : 'AI生成简历'}}
+  </button>
+  <view wx:if="{{error}}" class="error-msg" style="text-align:center;margin-top:16rpx">{{error}}</view>
+
+  <view wx:if="{{result}}" class="card" style="margin-top:24rpx">
+    <view class="card-title">生成的简历</view>
+    <view style="white-space:pre-wrap;font-size:28rpx;line-height:1.8;background:var(--bg);padding:24rpx;border-radius:var(--radius)">{{result}}</view>
+
+    <view wx:if="{{tips}}" style="margin-top:16rpx;padding:16rpx;background:#fef9c3;border-radius:var(--radius);font-size:26rpx;color:#b45309">{{tips}}</view>
+  </view>
+</view>

@@ -24,9 +24,20 @@ def init_db():
             is_admin INTEGER NOT NULL DEFAULT 0,
             reset_token TEXT DEFAULT '',
             reset_token_expiry TIMESTAMP,
+            wx_openid TEXT DEFAULT '',
+            wx_unionid TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+    """)
 
+    # Migrate existing tables that may lack new columns
+    for col, typ in [("wx_openid", "TEXT DEFAULT ''"), ("wx_unionid", "TEXT DEFAULT ''")]:
+        try:
+            db.execute(f"ALTER TABLE users ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
+
+    db.executescript("""
         CREATE TABLE IF NOT EXISTS analyses (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -56,16 +67,33 @@ def init_db():
             used_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_no TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            plan_type TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            alipay_trade_no TEXT DEFAULT '',
+            alipay_buyer_id TEXT DEFAULT '',
+            paid_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
+        CREATE INDEX IF NOT EXISTS idx_orders_no ON orders(order_no);
     """)
     db.commit()
     db.close()
 
-def create_user(username, password_hash, realname="", phone="", email=""):
+def create_user(username, password_hash, realname="", phone="", email="", wx_openid="", wx_unionid=""):
     db = get_db()
     try:
         db.execute(
-            "INSERT INTO users (username, password_hash, realname, phone, email) VALUES (?, ?, ?, ?, ?)",
-            (username, password_hash, realname, phone, email)
+            "INSERT INTO users (username, password_hash, realname, phone, email, wx_openid, wx_unionid) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (username, password_hash, realname, phone, email, wx_openid, wx_unionid)
         )
         db.commit()
         return db.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
@@ -73,6 +101,13 @@ def create_user(username, password_hash, realname="", phone="", email=""):
         return None
     finally:
         db.close()
+
+
+def get_user_by_wx_openid(openid):
+    db = get_db()
+    row = db.execute("SELECT * FROM users WHERE wx_openid=?", (openid,)).fetchone()
+    db.close()
+    return row
 
 def get_user_by_username(username):
     db = get_db()
@@ -167,3 +202,31 @@ def get_analysis(analysis_id, user_id):
     ).fetchone()
     db.close()
     return row
+
+
+def create_order(order_no, user_id, plan_type, amount):
+    db = get_db()
+    db.execute(
+        "INSERT INTO orders (order_no, user_id, plan_type, amount) VALUES (?, ?, ?, ?)",
+        (order_no, user_id, plan_type, amount)
+    )
+    db.commit()
+    db.close()
+
+
+def get_order(order_no):
+    db = get_db()
+    row = db.execute("SELECT * FROM orders WHERE order_no=?", (order_no,)).fetchone()
+    db.close()
+    return row
+
+
+def mark_order_paid(order_no, alipay_trade_no="", alipay_buyer_id=""):
+    db = get_db()
+    db.execute(
+        """UPDATE orders SET status='paid', alipay_trade_no=?, alipay_buyer_id=?,
+           paid_at=datetime('now') WHERE order_no=?""",
+        (alipay_trade_no, alipay_buyer_id, order_no)
+    )
+    db.commit()
+    db.close()

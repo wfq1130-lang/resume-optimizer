@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}AI简历优化器{% endblock %}</title>
+<title>{% block title %}简历优化分析平台{% endblock %}</title>
 <link rel="stylesheet" href="/static/style.css">
 {% block extra_head %}{% endblock %}
 </head>
@@ -14,7 +14,7 @@
 
 <div class="header">
   <div style="display:flex;align-items:center;gap:16px">
-    <a href="/" class="logo">AI简历优化器</a>
+    <a href="/" class="logo">简历优化分析平台</a>
     {% if session.user_id %}
     <a href="/history" style="font-size:.82rem;color:#666;text-decoration:none;font-weight:500">历史记录</a>
     <a href="/redeem" style="font-size:.82rem;color:#666;text-decoration:none;font-weight:500">兑换码</a>
@@ -44,7 +44,7 @@
 {% if not hub_footer|default(false) %}
 <footer class="site-footer">
   <div style="max-width:1000px;margin:0 auto;text-align:center">
-    <div style="font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:6px">AI简历优化器</div>
+    <div style="font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:6px">简历优化分析平台</div>
     <div style="font-size:.85rem;color:#94a3b8;margin-bottom:12px">让求职更简单</div>
     <div style="font-size:.85rem;color:#94a3b8;margin-bottom:20px">
       专业的AI简历优化工具，智能分析、优化措辞、匹配岗位，助力求职者脱颖而出。

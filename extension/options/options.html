@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设置 — 简历优化分析平台</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    color: #1e293b;
+    background: #f8fafc;
+    padding: 32px;
+  }
+  .container { max-width: 520px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 700; margin-bottom: 24px; color: #4f46e5; }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  .form-group { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; color: #64748b; margin-bottom: 6px; font-weight: 500; }
+  input { width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  input:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.1); }
+  .btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary { background: linear-gradient(135deg,#4f46e5,#8b5cf6); color: #fff; }
+  .btn-outline { background: #fff; color: #4f46e5; border: 1px solid #4f46e5; }
+  .status { margin-top: 8px; font-size: 12px; }
+  .status.success { color: #22c55e; }
+  .status.error { color: #ef4444; }
+  .hint { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>设置</h1>
+
+  <div class="card">
+    <h3 style="margin-bottom:16px">API 服务器</h3>
+    <div class="form-group">
+      <label>服务器地址</label>
+      <input type="text" id="api-base" placeholder="http://127.0.0.1:5001">
+      <p class="hint">后端API的URL，部署到服务器后改为你的域名</p>
+    </div>
+    <button class="btn btn-primary" id="save-api-btn">保存</button>
+    <div class="status" id="api-status"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:16px">账户信息</h3>
+    <div id="account-info">未登录</div>
+    <button class="btn btn-outline" id="logout-btn" style="margin-top:12px">退出登录</button>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:16px">关于</h3>
+    <p style="font-size:13px;color:#64748b;line-height:1.8">
+      简历优化分析平台 v1.0.0<br>
+      支持在招聘网站上实时分析简历与JD匹配度，一键优化简历措辞。<br><br>
+      支持网站：智联招聘、猎聘、Boss直聘、前程无忧、LinkedIn、Indeed、Glassdoor
+    </p>
+  </div>
+</div>
+<script src="options.js"></script>
+</body>
+</html>

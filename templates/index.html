@@ -1,126 +1,267 @@
 {% extends "layout.html" %}
-{% block title %}AI简历优化器 — 智能生成与优化{% endblock %}
+{% block title %}简历优化分析平台 — 智能生成与优化{% endblock %}
 {% block content %}
 
 {% if not session.user_id %}
 <!-- ================================================================
-     GUEST: Landing page with chat-style generation
+     GUEST: Professional landing page
      ================================================================ -->
 
-<section class="hero" style="padding:48px 16px 28px">
-  <h1 style="font-size:clamp(1.5rem,4vw,2.2rem);margin-bottom:8px">
-    AI 简历<span class="gradient-text">在线制作</span>
+<!-- Hero -->
+<section class="hero" style="padding:56px 16px 20px;text-align:center">
+  <h1 style="font-size:clamp(1.6rem,4.5vw,2.4rem);font-weight:900;margin-bottom:10px;line-height:1.3">
+    专业<span class="gradient-text">AI简历优化</span>平台
   </h1>
-  <p class="hero-subtitle" style="margin-bottom:28px">
-    与简历AI对话，轻松完成AI简历生成
+  <p style="font-size:clamp(.95rem,2vw,1.15rem);color:var(--text-secondary);margin-bottom:8px;max-width:600px;margin-left:auto;margin-right:auto">
+    不仅仅是AI润色 — 模拟ATS机筛、JD深度匹配、定向关键词优化
+  </p>
+  <p style="font-size:.82rem;color:var(--text-muted);max-width:520px;margin:0 auto 24px">
+    比直接找ChatGPT强在哪？往下看 ↓
   </p>
 </section>
 
-<!-- Chat Dialog -->
-<div style="max-width:680px;margin:0 auto 32px">
+<!-- Chat Box -->
+<div style="max-width:680px;margin:0 auto 40px">
   <form method="POST" action="/generate" id="gen-form">
-    <div class="card" style="padding:20px 24px">
-      <!-- Chat input area -->
+    <div class="card" style="padding:20px 24px;box-shadow:0 4px 32px rgba(79,70,229,.1)">
       <div style="position:relative">
-        <textarea name="user_input" id="user-input" class="form-control" rows="4"
-          placeholder="告诉简历AI你的情况，我们免费帮你生成简历，比如：我是一名前端开发工程师..."
+        <textarea name="user_input" id="user-input" class="form-control" rows="3"
+          placeholder="告诉简历AI你的情况，免费生成简历 — 例如：我是一名前端工程师，3年React经验..."
           style="resize:none;font-size:.95rem;line-height:1.7;padding:14px 16px;border-radius:var(--radius-lg)"
           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();submitGen()}"></textarea>
-
-        <!-- File upload hint -->
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
-          <label for="gen-file" style="cursor:pointer;color:var(--text-muted);font-size:.82rem;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);transition:all var(--transition)">
+          <label for="gen-file" style="cursor:pointer;color:var(--text-muted);font-size:.82rem;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm)">
             <span>📎 上传文件</span>
             <input type="file" id="gen-file" name="resume_file" style="display:none" accept=".pdf,.docx,.doc,.txt,.md" onchange="onGenFileSelected(this)">
           </label>
           <span id="gen-file-name" style="font-size:.78rem;color:var(--primary);font-weight:500"></span>
-          <div style="font-size:.75rem;color:var(--text-muted)">
-            Enter发送 | Shift+Enter换行 | Ctrl+V粘贴文件
-          </div>
+          <div style="font-size:.75rem;color:var(--text-muted)">Enter发送 · Shift+Enter换行</div>
         </div>
       </div>
-
-      <!-- Send button -->
       <div style="text-align:right;margin-top:12px">
-        <button type="submit" class="btn btn-primary" style="padding:10px 28px;font-size:.92rem" id="gen-btn">
-          发送
-        </button>
+        <button type="submit" class="btn btn-primary" style="padding:10px 28px;font-size:.92rem" id="gen-btn">发送</button>
       </div>
-
       {% if gen_error %}
       <div style="background:#fee2e2;color:#b91c1c;padding:8px 14px;border-radius:var(--radius);margin-top:10px;font-size:.84rem">{{ gen_error }}</div>
       {% endif %}
     </div>
   </form>
 
-  <!-- Scene selection cards -->
-  <p style="text-align:center;margin:20px 0 14px;font-size:.88rem;color:var(--text-secondary)">或选择场景开启AI简历生成</p>
+  <p style="text-align:center;margin:16px 0 10px;font-size:.85rem;color:var(--text-secondary)">或选择场景快速开始</p>
   <div class="usecase-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
     <div class="usecase-card" onclick="setScene('fresh_graduate','应届毕业生','我是今年刚毕业的大学生，想找一份互联网公司的产品经理工作')">
-      <div class="uc-icon">🎓</div>
-      <h4>应届毕业生</h4>
-      <p style="font-size:.78rem">刚毕业，想找第一份工作</p>
+      <div class="uc-icon">🎓</div><h4>应届毕业生</h4><p style="font-size:.78rem">刚毕业，找第一份工作</p>
     </div>
     <div class="usecase-card" onclick="setScene('career_change','转行求职','我有3年销售经验，现在想转行做UI设计师')">
-      <div class="uc-icon">🔄</div>
-      <h4>转行求职</h4>
-      <p style="font-size:.78rem">想换个行业发展</p>
+      <div class="uc-icon">🔄</div><h4>转行求职</h4><p style="font-size:.78rem">想换个行业发展</p>
     </div>
-    <div class="usecase-card" onclick="setScene('experienced','有经验求职者','我是一名有5年开发经验的工程师，想找更好的机会')">
-      <div class="uc-icon">🚀</div>
-      <h4>有经验求职者</h4>
-      <p style="font-size:.78rem">积累经验，寻求突破</p>
+    <div class="usecase-card" onclick="setScene('experienced','有经验求职者','我有5年开发经验，想找更好的机会')">
+      <div class="uc-icon">🚀</div><h4>有经验求职者</h4><p style="font-size:.78rem">积累经验，寻求突破</p>
     </div>
     <div class="usecase-card" onclick="setScene('promotion','职位晋升','我在公司工作3年了，想申请高级岗位或管理职位')">
-      <div class="uc-icon">💎</div>
-      <h4>职位晋升</h4>
-      <p style="font-size:.78rem">升职加薪更进一步</p>
+      <div class="uc-icon">💎</div><h4>职位晋升</h4><p style="font-size:.78rem">升职加薪更进一步</p>
     </div>
   </div>
   <input type="hidden" name="scene" id="scene-input" value="">
 </div>
 
-<!-- Divider -->
-<div style="max-width:680px;margin:40px auto;text-align:center">
-  <div style="display:flex;align-items:center;gap:16px">
-    <div style="flex:1;height:1px;background:var(--border)"></div>
-    <span style="color:var(--text-muted);font-size:.82rem">或者上传已有简历进行优化</span>
-    <div style="flex:1;height:1px;background:var(--border)"></div>
-  </div>
-  <a href="javascript:void(0)" onclick="window.openLoginModal()" class="btn btn-outline btn-lg" style="margin-top:20px">上传简历优化 →（需登录）</a>
-</div>
+<!-- ======== Why Us vs AI Chat ======== -->
+<section style="background:linear-gradient(180deg,#f8fafc 0%,#fff 100%);padding:48px 16px">
+  <div style="max-width:900px;margin:0 auto">
+    <div style="text-align:center;margin-bottom:36px">
+      <span class="badge" style="background:#ede9fe;color:var(--primary);font-size:.75rem;padding:4px 14px;border-radius:20px;margin-bottom:12px;display:inline-block">为什么比 AI 聊天更强？</span>
+      <h2 style="font-size:clamp(1.2rem,3vw,1.6rem);font-weight:800;margin-top:8px">普通AI聊天做不了的<span style="color:var(--primary)">三件事</span></h2>
+    </div>
 
-<!-- Features preview -->
-<section class="section section-gray" style="padding:48px 0">
-  <div class="section-header reveal">
-    <h2>为什么选择我们</h2>
-    <p>AI 驱动的智能简历工具</p>
+    <!-- Feature 1: ATS -->
+    <div class="card reveal" style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px;padding:28px;flex-wrap:wrap">
+      <div style="background:#fef3c7;width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0">🤖</div>
+      <div style="flex:1;min-width:240px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <h3 style="margin:0;font-size:1.05rem;font-weight:700">ATS 机器筛选模拟</h3>
+          <span class="badge" style="background:#fef3c7;color:#b45309;font-size:.7rem">独有功能</span>
+        </div>
+        <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:10px;line-height:1.7">
+          75%的简历在到达HR之前就被ATS系统淘汰。我们的7维度评分引擎模拟真实企业机筛规则，检查格式兼容性、关键词密度、行为动词、量化指标等，<strong>提前告诉你简历能不能过机器关</strong>。
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.76rem;color:var(--text-muted)">
+          <span>✓ 格式兼容</span><span>✓ 关键词密度</span><span>✓ 模块完整</span><span>✓ A-F等级</span><span>✓ 修复建议</span>
+        </div>
+      </div>
+      <!-- Mini score preview -->
+      <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:16px;padding:20px 24px;text-align:center;flex-shrink:0;min-width:100px">
+        <div style="font-size:.7rem;color:#b45309;margin-bottom:4px">ATS 评分</div>
+        <div style="font-size:2.2rem;font-weight:900;color:#d97706">85</div>
+        <div style="font-size:.8rem;font-weight:700;color:#b45309">A 级</div>
+      </div>
+    </div>
+
+    <!-- Feature 2: JD Deep Match -->
+    <div class="card reveal" style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px;padding:28px;flex-wrap:wrap">
+      <div style="background:#ede9fe;width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0">🎯</div>
+      <div style="flex:1;min-width:240px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <h3 style="margin:0;font-size:1.05rem;font-weight:700">JD 定向优化</h3>
+          <span class="badge" style="background:#ede9fe;color:#6d28d9;font-size:.7rem">核心功能</span>
+        </div>
+        <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:10px;line-height:1.7">
+          AI聊天只能泛泛地给建议。我们<strong>结构化解析JD</strong> — 提取硬技能、软技能、经验要求，<strong>精准找出简历缺口</strong>，然后定向融入缺失关键词到你的真实经历中，<strong>一份简历一个岗位一个版本</strong>。
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.76rem;color:var(--text-muted)">
+          <span>✓ JD结构化解析</span><span>✓ 技能缺口分析</span><span>✓ 关键词定向融入</span><span>✓ 不编造经历</span>
+        </div>
+      </div>
+      <!-- Mini match preview -->
+      <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:16px;padding:20px 24px;text-align:center;flex-shrink:0;min-width:100px">
+        <div style="font-size:.7rem;color:#6d28d9;margin-bottom:4px">关键词覆盖</div>
+        <div style="font-size:2.2rem;font-weight:900;color:#7c3aed">78%</div>
+        <div style="font-size:.8rem;font-weight:700;color:#6d28d9">优化后 → 92%</div>
+      </div>
+    </div>
+
+    <!-- Feature 3: PDF Parsing -->
+    <div class="card reveal" style="display:flex;gap:20px;align-items:flex-start;margin-bottom:16px;padding:28px;flex-wrap:wrap">
+      <div style="background:#dcfce7;width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0">📄</div>
+      <div style="flex:1;min-width:240px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <h3 style="margin:0;font-size:1.05rem;font-weight:700">文件直接解析</h3>
+          <span class="badge" style="background:#dcfce7;color:#166534;font-size:.7rem">效率提升</span>
+        </div>
+        <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:10px;line-height:1.7">
+          直接上传PDF/DOCX简历文件，我们自动解析格式、提取结构、识别模块。<strong>不需要手动复制粘贴</strong>，不需要担心格式丢失。AI聊天做不到这一点。
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.76rem;color:var(--text-muted)">
+          <span>✓ PDF解析</span><span>✓ DOCX表格</span><span>✓ 自动分词</span><span>✓ 模块识别</span>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="feature-grid reveal">
-    <div class="feature-card">
-      <div class="fc-icon fc-icon-blue">🤖</div>
-      <h3>对话式生成</h3>
-      <p>告诉AI你的情况，自动生成专业简历，不需要任何排版经验</p>
+</section>
+
+<!-- ======== Comparison Table ======== -->
+<section style="padding:40px 16px;background:#f8fafc">
+  <div style="max-width:860px;margin:0 auto">
+    <h3 style="text-align:center;font-weight:800;font-size:1.2rem;margin-bottom:24px">一张表看懂区别</h3>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem;background:#fff;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)">
+        <thead>
+          <tr style="background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff">
+            <th style="padding:14px 16px;text-align:left;font-weight:600">功能</th>
+            <th style="padding:14px 16px;text-align:center;font-weight:600">通用AI聊天</th>
+            <th style="padding:14px 16px;text-align:center;font-weight:600">简历优化分析平台</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:12px 16px;font-weight:500">AI简历润色</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:#fafafa">
+            <td style="padding:12px 16px;font-weight:500">ATS机筛模拟</td>
+            <td style="padding:12px 16px;text-align:center;color:#ef4444">✗ 完全不支持</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓ 7维度100分</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:12px 16px;font-weight:500">JD结构化解析</td>
+            <td style="padding:12px 16px;text-align:center;color:#ef4444">✗ 泛泛对比</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓ 硬/软技能提取</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:#fafafa">
+            <td style="padding:12px 16px;font-weight:500">定向关键词融入</td>
+            <td style="padding:12px 16px;text-align:center;color:#f59e0b">△ 可能编造</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓ 基于真实经历</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:12px 16px;font-weight:500">PDF/DOCX解析</td>
+            <td style="padding:12px 16px;text-align:center;color:#ef4444">✗ 需手动粘贴</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓ 拖拽上传</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border);background:#fafafa">
+            <td style="padding:12px 16px;font-weight:500">简历结构化分块</td>
+            <td style="padding:12px 16px;text-align:center;color:#ef4444">✗ 无</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓ 6大模块自动识别</td>
+          </tr>
+          <tr>
+            <td style="padding:12px 16px;font-weight:500">量化成果检测</td>
+            <td style="padding:12px 16px;text-align:center;color:#ef4444">✗ 无</td>
+            <td style="padding:12px 16px;text-align:center;color:#22c55e">✓ 自动检测+提醒</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <div class="feature-card">
-      <div class="fc-icon fc-icon-purple">📊</div>
-      <h3>智能评分优化</h3>
-      <p>上传已有简历，五维度评分，给出具体改进建议并自动优化</p>
+  </div>
+</section>
+
+<!-- ======== How it works ======== -->
+<section style="padding:48px 16px">
+  <div style="max-width:860px;margin:0 auto;text-align:center">
+    <h2 style="font-weight:800;font-size:1.3rem;margin-bottom:32px">三步完成优化</h2>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;justify-content:center">
+      <div style="flex:1;min-width:200px;max-width:260px">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:800;margin:0 auto 12px">1</div>
+        <h4 style="font-weight:700;margin-bottom:4px">上传简历</h4>
+        <p style="font-size:.82rem;color:var(--text-secondary)">拖拽PDF/DOCX或粘贴文本 <br>→ 自动解析结构化</p>
+      </div>
+      <div style="flex:1;min-width:200px;max-width:260px">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:800;margin:0 auto 12px">2</div>
+        <h4 style="font-weight:700;margin-bottom:4px">ATS + JD分析</h4>
+        <p style="font-size:.82rem;color:var(--text-secondary)">模拟机筛评分 + 岗位缺口定位 <br>→ 精准知道哪里要改</p>
+      </div>
+      <div style="flex:1;min-width:200px;max-width:260px">
+        <div style="width:64px;height:64px;background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:800;margin:0 auto 12px">3</div>
+        <h4 style="font-weight:700;margin-bottom:4px">定向优化导出</h4>
+        <p style="font-size:.82rem;color:var(--text-secondary)">AI重写融入关键词 <br>→ 一个岗位一份定制简历</p>
+      </div>
     </div>
-    <div class="feature-card">
-      <div class="fc-icon fc-icon-green">🎯</div>
-      <h3>JD 岗位匹配</h3>
-      <p>对比目标岗位，分析匹配度，针对性地改进简历</p>
+  </div>
+</section>
+
+<!-- ======== Pricing Preview ======== -->
+<section style="padding:32px 16px;background:#f8fafc">
+  <div style="max-width:900px;margin:0 auto;text-align:center">
+    <h2 style="font-weight:800;font-size:1.3rem;margin-bottom:24px">简单定价</h2>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:stretch">
+      <div class="card" style="flex:1;min-width:220px;max-width:300px;text-align:center;padding:28px 20px">
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:4px">免费试用</div>
+        <div style="font-size:2.2rem;font-weight:800;margin-bottom:4px">¥0</div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:16px">注册即送3次</div>
+        <div style="font-size:.78rem;color:var(--text-secondary);line-height:2">ATS检查 · JD解析 · PDF上传<br>AI优化 · 简历生成</div>
+      </div>
+      <div class="card" style="flex:1;min-width:220px;max-width:300px;text-align:center;padding:28px 20px;border:2px solid var(--primary);position:relative">
+        <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;padding:3px 16px;border-radius:12px;font-size:.7rem;font-weight:600">推荐</div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:4px;margin-top:4px">单次购买</div>
+        <div style="font-size:2.2rem;font-weight:800;margin-bottom:4px">¥9.9</div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:16px">一次完整分析</div>
+        <div style="font-size:.78rem;color:var(--text-secondary);line-height:2">全部功能 · 含ATS+JD定向</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======== Social Proof ======== -->
+<section style="padding:32px 16px 48px">
+  <div style="max-width:700px;margin:0 auto;text-align:center">
+    <h2 style="font-weight:800;font-size:1.2rem;margin-bottom:24px">适用于所有主流招聘平台</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center">
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">Boss直聘</span>
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">猎聘</span>
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">智联招聘</span>
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">前程无忧</span>
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">LinkedIn</span>
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">Indeed</span>
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">拉勾</span>
+      <span style="background:#fff;border:1px solid var(--border);padding:8px 18px;border-radius:24px;font-size:.82rem;color:var(--text-secondary)">Glassdoor</span>
     </div>
   </div>
 </section>
 
 <!-- CTA -->
-<section class="section">
+<section class="section" style="padding-bottom:56px">
   <div class="cta-banner reveal">
-    <h2>免费开始使用</h2>
-    <p>新用户注册即送 3 次免费分析</p>
-    <a href="/register" class="btn-white">免费注册 →</a>
+    <h2>准备让你的简历通过ATS筛选？</h2>
+    <p>免费注册，获得3次完整分析 + ATS检查 + JD定向优化</p>
+    <a href="/register" class="btn-white" style="font-size:1rem;padding:12px 32px">免费注册 →</a>
   </div>
 </section>
 
@@ -212,6 +353,61 @@
     <span style="color:var(--text-muted);font-size:.82rem">或者上传已有简历优化</span>
     <div style="flex:1;height:1px;background:var(--border)"></div>
   </div>
+</div>
+
+<!-- Tool 3: ATS Check -->
+<div style="max-width:680px;margin:0 auto 24px">
+  <form method="POST" action="/ats-check" id="ats-form" onsubmit="return validateATS()">
+    <div class="card" style="padding:24px;border-left:4px solid #f59e0b">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:1.6rem">🤖</span>
+        <h4 style="font-weight:700;margin:0">ATS 兼容性检查</h4>
+        <span class="badge" style="background:#fef3c7;color:#b45309;font-size:.7rem">独有功能</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:12px">
+        模拟企业ATS对简历的机器评分。75%简历在机筛阶段被淘汰 — 提前检查你的简历能否过关。
+      </p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;font-size:.73rem;color:var(--text-muted)">
+        <span>✓ 格式兼容</span><span>✓ 关键词密度</span><span>✓ 模块完整</span><span>✓ 量化数据</span><span>✓ 行为动词</span><span>✓ 长度检查</span>
+      </div>
+      <textarea name="resume_text" class="form-control" rows="4" placeholder="粘贴简历内容以进行ATS检查..." id="ats-resume"></textarea>
+      <div class="form-group" style="margin-top:10px;margin-bottom:0">
+        <textarea name="jd_text" class="form-control" rows="2" placeholder="粘贴目标JD（可选）— 检查关键词匹配" id="ats-jd"></textarea>
+      </div>
+      <div style="text-align:right;margin-top:12px">
+        <button type="submit" class="btn btn-outline" style="border-color:#f59e0b;color:#b45309">🔍 ATS 检查</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Tool 4: Targeted JD Optimization -->
+<div style="max-width:680px;margin:0 auto 24px">
+  <form method="POST" action="/targeted-optimize" id="targeted-form" onsubmit="return validateTargeted()">
+    <div class="card" style="padding:24px;border-left:4px solid #8b5cf6">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:1.6rem">🎯</span>
+        <h4 style="font-weight:700;margin:0">定向JD优化</h4>
+        <span class="badge" style="background:#ede9fe;color:#6d28d9;font-size:.7rem">核心功能</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:12px">
+        解析JD中的硬技能/软技能/硬性要求，找出简历缺口，生成针对性定制简历。
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;display:block">简历内容</label>
+          <textarea name="resume_text" class="form-control" rows="5" placeholder="粘贴简历..." id="targeted-resume"></textarea>
+        </div>
+        <div>
+          <label style="font-size:.75rem;color:var(--text-muted);margin-bottom:4px;display:block">职位描述(JD)</label>
+          <textarea name="jd_text" class="form-control" rows="5" placeholder="粘贴目标JD..." id="targeted-jd"></textarea>
+        </div>
+      </div>
+      <div style="text-align:right;margin-top:12px">
+        <button type="submit" class="btn btn-primary" style="background:linear-gradient(135deg,#7c3aed,#8b5cf6)">🎯 定向优化</button>
+      </div>
+    </div>
+  </form>
 </div>
 
 <!-- Resume Upload & Optimize -->
@@ -317,6 +513,29 @@ document.getElementById('analyze-form').addEventListener('submit', function() {
   btn.disabled = true;
   btn.style.opacity = '.7';
 });
+
+function validateATS() {
+  var resume = document.getElementById('ats-resume').value.trim();
+  if (!resume || resume.length < 50) {
+    showToast('简历内容至少50字才能进行ATS分析', 'warning');
+    return false;
+  }
+  return true;
+}
+
+function validateTargeted() {
+  var resume = document.getElementById('targeted-resume').value.trim();
+  var jd = document.getElementById('targeted-jd').value.trim();
+  if (!resume || resume.length < 50) {
+    showToast('简历内容至少50字', 'warning');
+    return false;
+  }
+  if (!jd || jd.length < 30) {
+    showToast('请提供职位描述以进行定向优化', 'warning');
+    return false;
+  }
+  return true;
+}
 {% endif %}
 </script>
 {% endblock %}

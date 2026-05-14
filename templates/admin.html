@@ -3,45 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>管理后台 — AI简历优化器</title>
+<title>管理后台 — 简历优化分析平台</title>
 <link rel="stylesheet" href="/static/style.css">
+<meta http-equiv="refresh" content="30">
+<style>
+  .pulse { animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
+  .phone-tip { background:linear-gradient(135deg,#ede9fe,#f5f3ff); border:1px solid #c4b5fd; border-radius:12px; padding:16px 20px; margin-bottom:24px; font-size:.84rem; color:#6d28d9; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .phone-tip code { background:#fff; padding:3px 10px; border-radius:6px; font-size:.82rem; color:var(--primary); font-weight:600; cursor:pointer; }
+  .live-indicator { display:inline-block; width:10px; height:10px; background:#22c55e; border-radius:50%; margin-right:6px; animation: pulse 2s ease-in-out infinite; }
+  @media (max-width:768px) {
+    .stats-grid { grid-template-columns: repeat(2,1fr); gap:10px; }
+    .stat-card { padding:16px 12px; }
+    .stat-card .value { font-size:1.6rem; }
+    table { font-size:.75rem; }
+    th, td { padding:8px 6px; }
+    .hide-mobile { display:none; }
+  }
+</style>
 </head>
 <body>
 <div class="header">
   <div style="display:flex;align-items:center;gap:16px">
-    <a href="/" class="logo">AI简历优化器</a>
+    <a href="/" class="logo">简历优化分析平台</a>
     <span class="badge badge-error" style="font-size:.7rem">管理员</span>
+    <span style="font-size:.75rem;color:#22c55e"><span class="live-indicator"></span>实时监控中</span>
   </div>
   <div class="user">{{ session.realname }} <a href="/logout">退出</a></div>
 </div>
 
 <div class="container" style="max-width:1100px;padding:24px">
-  <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:20px">管理后台</h1>
+
+  <!-- Phone access tip -->
+  <div class="phone-tip">
+    <span style="font-size:1.4rem">📱</span>
+    <div style="flex:1">
+      <strong>手机上也能看 — 同一WiFi下用手机浏览器打开:</strong>
+      <code id="admin-url" onclick="copyURL()" title="点击复制">...</code>
+      <span id="copy-ok" style="display:none;color:#22c55e;font-size:.78rem;margin-left:8px">已复制 ✓</span>
+    </div>
+  </div>
+
+  <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:8px">管理后台</h1>
+  <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:20px">
+    每30秒自动刷新 · 今日新增 <strong style="color:var(--primary)">{{ today_users }}</strong> 位用户 · <strong style="color:var(--success)">{{ today_paid }}</strong> 笔付费 · <strong style="color:#f59e0b">{{ today_analyses }}</strong> 次分析
+  </p>
 
   <!-- Stats -->
-  <div class="stats-grid">
-    <div class="stat-card"><div class="value">{{ total_users }}</div><div class="label">总用户</div></div>
-    <div class="stat-card"><div class="value" style="color:var(--success)">{{ paid_users }}</div><div class="label">付费用户</div></div>
-    <div class="stat-card"><div class="value">{{ total_analyses }}</div><div class="label">总分析次数</div></div>
+  <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:24px">
+    <div class="stat-card" style="position:relative">
+      <div class="value">{{ total_users }}</div>
+      <div class="label">总用户</div>
+      {% if today_users > 0 %}
+      <div style="position:absolute;top:8px;right:12px;background:#fee2e2;color:#ef4444;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;animation:pulse 2s infinite">+{{ today_users }}</div>
+      {% endif %}
+    </div>
+    <div class="stat-card" style="position:relative">
+      <div class="value" style="color:var(--success)">{{ paid_users }}</div>
+      <div class="label">付费用户</div>
+      {% if today_paid > 0 %}
+      <div style="position:absolute;top:8px;right:12px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;animation:pulse 2s infinite">+{{ today_paid }}</div>
+      {% endif %}
+    </div>
+    <div class="stat-card" style="position:relative">
+      <div class="value">{{ total_analyses }}</div>
+      <div class="label">总分析次数</div>
+      {% if today_analyses > 0 %}
+      <div style="position:absolute;top:8px;right:12px;background:#fffbeb;color:#d97706;padding:2px 8px;border-radius:10px;font-size:.7rem;font-weight:700;animation:pulse 2s infinite">+{{ today_analyses }}</div>
+      {% endif %}
+    </div>
   </div>
+
+  <!-- Recent payments -->
+  {% if recent_orders %}
+  <div class="card" style="margin-bottom:24px;border-left:4px solid #22c55e">
+    <h4 style="font-weight:700;margin-bottom:8px">💳 最近支付</h4>
+    <table>
+      <thead><tr><th>订单号</th><th>用户</th><th>套餐</th><th>金额</th><th>状态</th><th>时间</th></tr></thead>
+      <tbody>
+        {% for o in recent_orders %}
+        <tr>
+          <td style="font-family:monospace;font-size:.8rem">{{ o.order_no }}</td>
+          <td>{{ o.username }}</td>
+          <td>{{ '单次' if o.plan_type == 'single' else '包月' }}</td>
+          <td>¥{{ "%.2f"|format(o.amount / 100) }}</td>
+          <td>{{ '<span class="badge badge-success">已付</span>'|safe if o.status == 'paid' else '<span class="badge badge-warning">待付</span>'|safe }}</td>
+          <td style="font-size:.78rem;color:var(--text-muted)">{{ o.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
 
   <!-- Generate Codes -->
   <div class="card" style="margin-bottom:24px">
     <h4 style="font-weight:700;margin-bottom:14px">🎫 生成兑换码</h4>
-    <form method="POST" action="/admin/generate-codes" class="flex-row" style="align-items:flex-end">
+    <form method="POST" action="/admin/generate-codes" class="flex-row" style="align-items:flex-end;flex-wrap:wrap;gap:10px">
       <div class="form-group" style="margin-bottom:0">
         <label>数量</label>
-        <input type="number" name="count" value="5" min="1" max="50" class="form-control" style="width:100px">
+        <input type="number" name="count" value="5" min="1" max="50" class="form-control" style="width:80px">
       </div>
       <div class="form-group" style="margin-bottom:0">
-        <label>每个码赠送次数</label>
-        <input type="number" name="quota" value="10" min="1" max="999" class="form-control" style="width:100px">
+        <label>每码赠送次数</label>
+        <input type="number" name="quota" value="10" min="1" max="999" class="form-control" style="width:80px">
       </div>
       <button type="submit" class="btn btn-primary">生成</button>
     </form>
     {% if codes %}
-    <div style="margin-top:16px">
-      <h5 style="font-weight:600;margin-bottom:8px">最近生成的兑换码</h5>
+    <div style="margin-top:16px;overflow-x:auto">
       <table>
         <thead><tr><th>兑换码</th><th>赠送次数</th><th>状态</th><th>使用者</th></tr></thead>
         <tbody>
@@ -63,28 +133,26 @@
   <div class="card" style="padding:0;overflow-x:auto">
     <h4 style="padding:16px 20px 12px;font-weight:700">👥 用户管理</h4>
     <table>
-      <thead><tr><th>ID</th><th>账号</th><th>手机</th><th>邮箱</th><th>剩余次数</th><th>付费</th><th>注册时间</th><th>操作</th></tr></thead>
+      <thead><tr><th>ID</th><th>账号</th><th class="hide-mobile">手机</th><th class="hide-mobile">邮箱</th><th>剩余次数</th><th>付费</th><th class="hide-mobile">注册时间</th><th>操作</th></tr></thead>
       <tbody>
         {% for u in users %}
         <tr>
           <td>{{ u.id }}</td>
           <td><strong>{{ u.username }}</strong></td>
-          <td style="font-size:.82rem">{{ u.phone or '-' }}</td>
-          <td style="font-size:.82rem">{{ u.email or '-' }}</td>
-          <td style="font-weight:700;color:var(--primary)">{{ u.free_quota }}</td>
+          <td class="hide-mobile" style="font-size:.82rem">{{ u.phone or '-' }}</td>
+          <td class="hide-mobile" style="font-size:.82rem">{{ u.email or '-' }}</td>
+          <td style="font-weight:700;color:{{ '#22c55e' if u.free_quota > 10 else '#f59e0b' if u.free_quota > 0 else '#ef4444' }}">{{ u.free_quota }}</td>
           <td>{{ '<span class="badge badge-success">是</span>'|safe if u.is_paid else '<span class="badge badge-warning">否</span>'|safe }}</td>
-          <td style="font-size:.78rem;color:var(--text-muted)">{{ u.created_at }}</td>
+          <td class="hide-mobile" style="font-size:.78rem;color:var(--text-muted)">{{ u.created_at }}</td>
           <td>
-            <div class="flex-row" style="gap:6px">
-              <!-- Add quota -->
-              <form method="POST" action="/admin/user/{{ u.id }}/add-quota" style="display:flex;gap:4px;align-items:center">
-                <input type="number" name="amount" value="10" min="1" max="999" style="width:50px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:.8rem">
-                <button type="submit" class="btn btn-primary btn-sm" style="padding:3px 10px">加次数</button>
+            <div class="flex-row" style="gap:4px;flex-wrap:wrap">
+              <form method="POST" action="/admin/user/{{ u.id }}/add-quota" style="display:flex;gap:3px;align-items:center">
+                <input type="number" name="amount" value="10" min="1" max="999" style="width:44px;padding:4px 4px;border:1px solid var(--border);border-radius:4px;font-size:.78rem">
+                <button type="submit" class="btn btn-primary btn-sm" style="padding:3px 8px;font-size:.72rem">加</button>
               </form>
-              <!-- Toggle paid -->
               <form method="POST" action="/admin/user/{{ u.id }}/toggle-paid">
-                <button type="submit" class="btn btn-sm {{ 'btn-outline' if u.is_paid else 'btn-success' }}" style="padding:3px 10px">
-                  {{ '取消付费' if u.is_paid else '设为付费' }}
+                <button type="submit" class="btn btn-sm {{ 'btn-outline' if u.is_paid else 'btn-success' }}" style="padding:3px 8px;font-size:.72rem">
+                  {{ '取消' if u.is_paid else '设为付费' }}
                 </button>
               </form>
             </div>
@@ -95,5 +163,21 @@
     </table>
   </div>
 </div>
+
+<script>
+// Show local IP for phone access
+fetch('/health').then(function() {
+  var url = window.location.origin + '/admin';
+  document.getElementById('admin-url').textContent = url;
+}).catch(function(){});
+
+function copyURL() {
+  var code = document.getElementById('admin-url');
+  navigator.clipboard.writeText(code.textContent).then(function() {
+    document.getElementById('copy-ok').style.display = 'inline';
+    setTimeout(function() { document.getElementById('copy-ok').style.display = 'none'; }, 2000);
+  });
+}
+</script>
 </body>
 </html>

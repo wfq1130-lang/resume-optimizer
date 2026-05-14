@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "简历优化分析平台",
+  "version": "1.0.0",
+  "description": "AI驱动的简历优化工具 — 在招聘网站上实时分析简历与JD匹配度，一键优化简历措辞",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "简历优化分析平台"
+  },
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.zhaopin.com/*",
+    "https://*.liepin.com/*",
+    "https://*.zhipin.com/*",
+    "https://*.51job.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.glassdoor.com/*",
+    "https://*.seek.com.au/*",
+    "https://*.monster.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.zhaopin.com/*",
+        "https://*.liepin.com/*",
+        "https://*.zhipin.com/*",
+        "https://*.51job.com/*",
+        "https://*.linkedin.com/*",
+        "https://*.indeed.com/*",
+        "https://*.glassdoor.com/*",
+        "https://*.seek.com.au/*",
+        "https://*.monster.com/*"
+      ],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "options_page": "options/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/icon48.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

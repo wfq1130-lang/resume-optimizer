@@ -1,5 +1,5 @@
 {% extends "layout.html" %}
-{% block title %}升级会员 — AI简历优化器{% endblock %}
+{% block title %}升级会员 — 简历优化分析平台{% endblock %}
 {% block content %}
 
 <div class="page-title" style="text-align:center;justify-content:center;margin-bottom:8px">升级会员</div>
@@ -7,7 +7,7 @@
   {% if session.free_quota > 0 %}
   你还有 <strong style="color:var(--primary)">{{ session.free_quota }}</strong> 次免费分析
   {% else %}
-  免费次数已用完 😢
+  免费次数已用完
   {% endif %}
 </p>
 
@@ -16,7 +16,7 @@
   <div class="card" style="flex:1;min-width:260px;max-width:340px;text-align:center;padding:32px 24px">
     <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:8px">单次购买</div>
     <div style="font-size:2.5rem;font-weight:800;color:var(--text);margin-bottom:4px">
-      ¥9.9
+      &yen;9.9
       <span style="font-size:.85rem;font-weight:400;color:var(--text-muted)">/次</span>
     </div>
     <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:20px">一次完整的简历分析</p>
@@ -26,7 +26,7 @@
       <li>优化建议 + 重写</li>
       <li>JD 匹配分析</li>
     </ul>
-    <button class="btn btn-outline" style="width:100%" disabled>即将上线</button>
+    <button class="btn btn-outline" style="width:100%" onclick="buyNow('single')">立即购买</button>
   </div>
 
   <!-- Monthly plan -->
@@ -34,7 +34,7 @@
     <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;padding:4px 16px;border-radius:12px;font-size:.75rem;font-weight:600">推荐</div>
     <div style="font-size:.85rem;color:var(--text-muted);margin-bottom:8px;margin-top:4px">包月无限次</div>
     <div style="font-size:2.5rem;font-weight:800;color:var(--primary);margin-bottom:4px">
-      ¥29.9
+      &yen;29.9
       <span style="font-size:.85rem;font-weight:400;color:var(--text-muted)">/月</span>
     </div>
     <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:20px">无限次分析 + JD 匹配</p>
@@ -44,12 +44,155 @@
       <li>优先处理队列</li>
       <li>导出优化简历</li>
     </ul>
-    <button class="btn btn-primary" style="width:100%" disabled>即将上线</button>
+    <button class="btn btn-primary" style="width:100%" onclick="buyNow('monthly')">立即订阅</button>
   </div>
 </div>
 
-<div style="text-align:center;margin-top:24px;padding:16px;background:#fef9c3;border-radius:var(--radius);max-width:600px;margin-left:auto;margin-right:auto;font-size:.85rem;color:#b45309">
-  💡 支付功能即将上线，目前可以先免费试用。有建议或需求欢迎反馈！
+<div style="text-align:center;margin-top:24px;padding:16px;background:#f0f9ff;border-radius:var(--radius);max-width:600px;margin-left:auto;margin-right:auto;font-size:.85rem;color:#0369a1">
+  &#128274; 支持支付宝扫码支付 | 支付成功后自动到账 | 有问题联系客服
 </div>
 
+<!-- Payment Modal -->
+<div class="modal-overlay" id="payment-modal">
+  <div class="modal" style="max-width:440px;text-align:center">
+    <div style="text-align:right;margin-bottom:6px">
+      <button onclick="closePaymentModal()" style="background:none;border:none;cursor:pointer;font-size:1.4rem;color:var(--text-muted);line-height:1">&times;</button>
+    </div>
+    <h3 style="margin-bottom:4px" id="payment-title">支付订单</h3>
+    <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:16px" id="payment-amount"></p>
+
+    <!-- QR code area -->
+    <div id="payment-qr" style="width:200px;height:200px;margin:0 auto 12px;background:#f5f5f5;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+      <div id="payment-qr-placeholder" style="color:var(--text-muted);font-size:.82rem">生成中...</div>
+      <img id="payment-qr-img" src="" alt="支付二维码" style="display:none;width:100%;height:100%;object-fit:contain">
+    </div>
+    <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:8px">请使用支付宝扫码支付</p>
+
+    <div id="payment-status" style="font-size:.82rem;margin-bottom:12px;padding:6px 12px;border-radius:6px;display:none"></div>
+
+    <div id="payment-actions" style="display:flex;gap:10px;justify-content:center">
+      <button class="btn btn-outline btn-sm" onclick="closePaymentModal()">取消</button>
+      <button class="btn btn-primary btn-sm" id="payment-done-btn" style="display:none" onclick="closePaymentModal()">完成</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PAYMENT_POLL_TIMER = null;
+var CURRENT_ORDER_NO = '';
+
+function buyNow(planType) {
+  var modal = document.getElementById('payment-modal');
+  document.getElementById('payment-qr-img').style.display = 'none';
+  document.getElementById('payment-qr-placeholder').textContent = '生成中...';
+  document.getElementById('payment-qr-placeholder').style.display = 'block';
+  document.getElementById('payment-status').style.display = 'none';
+  document.getElementById('payment-done-btn').style.display = 'none';
+  document.getElementById('payment-title').textContent = planType === 'single' ? '单次分析' : '包月无限次';
+  document.getElementById('payment-amount').textContent = planType === 'single' ? '¥9.90' : '¥29.90/月';
+  modal.classList.add('active');
+
+  var form = new FormData();
+  form.append('plan_type', planType);
+
+  fetch('/api/create-order', { method: 'POST', body: form })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        document.getElementById('payment-qr-placeholder').textContent = data.error;
+        document.getElementById('payment-qr-placeholder').style.color = '#ef4444';
+        return;
+      }
+
+      CURRENT_ORDER_NO = data.order_no;
+
+      if (data.mock) {
+        // Dev mode — no real QR, show mock payment button
+        document.getElementById('payment-qr-placeholder').innerHTML =
+          '<div><p style="margin-bottom:10px;font-weight:600">开发模式</p><p style="font-size:.8rem">¥' + data.amount + ' — ' + data.plan_name + '</p></div>';
+        var mockBtn = document.createElement('button');
+        mockBtn.className = 'btn btn-primary btn-sm';
+        mockBtn.textContent = '模拟支付';
+        mockBtn.onclick = function() { simulatePay(data.order_no); };
+        document.getElementById('payment-actions').appendChild(mockBtn);
+        return;
+      }
+
+      if (data.qr_code) {
+        // Show QR code
+        var img = document.getElementById('payment-qr-img');
+        img.src = data.qr_code;
+        img.style.display = 'block';
+        document.getElementById('payment-qr-placeholder').style.display = 'none';
+        startPolling(data.order_no);
+      } else {
+        document.getElementById('payment-qr-placeholder').textContent = '生成支付二维码失败，请重试';
+        document.getElementById('payment-qr-placeholder').style.color = '#ef4444';
+      }
+    })
+    .catch(function() {
+      document.getElementById('payment-qr-placeholder').textContent = '网络错误，请重试';
+      document.getElementById('payment-qr-placeholder').style.color = '#ef4444';
+    });
+}
+
+function simulatePay(orderNo) {
+  var form = new FormData();
+  form.append('order_no', orderNo);
+  fetch('/api/payment/simulate/' + orderNo, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'paid') {
+        onPaymentSuccess();
+      }
+    });
+}
+
+function startPolling(orderNo) {
+  if (PAYMENT_POLL_TIMER) clearInterval(PAYMENT_POLL_TIMER);
+  PAYMENT_POLL_TIMER = setInterval(function() {
+    var form = new FormData();
+    form.append('order_no', orderNo);
+    fetch('/api/check-order', { method: 'POST', body: form })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.status === 'paid') {
+          clearInterval(PAYMENT_POLL_TIMER);
+          onPaymentSuccess();
+        }
+      });
+  }, 3000);
+}
+
+function onPaymentSuccess() {
+  document.getElementById('payment-qr-placeholder').style.display = 'none';
+  document.getElementById('payment-qr-img').style.display = 'none';
+  var status = document.getElementById('payment-status');
+  status.style.display = 'block';
+  status.style.background = '#dcfce7';
+  status.style.color = '#166534';
+  status.textContent = '支付成功！页面即将刷新...';
+  document.getElementById('payment-done-btn').style.display = 'inline-block';
+
+  setTimeout(function() { location.reload(); }, 1500);
+}
+
+function closePaymentModal() {
+  document.getElementById('payment-modal').classList.remove('active');
+  if (PAYMENT_POLL_TIMER) {
+    clearInterval(PAYMENT_POLL_TIMER);
+    PAYMENT_POLL_TIMER = null;
+  }
+  // Clean up mock button
+  var btns = document.querySelectorAll('#payment-actions button:not(.btn-outline):not(.btn-primary)');
+  btns.forEach(function(b) { b.remove(); });
+  var mockBtns = document.querySelectorAll('#payment-actions .btn-primary');
+  mockBtns.forEach(function(b) {
+    if (b.textContent === '模拟支付') b.remove();
+  });
+}
+</script>
 {% endblock %}

@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+data.db
+uploads/*
+!uploads/.gitkeep
+.env
+.secret_key
+.git/
+.gitignore
+*.md

@@ -5,3 +5,5 @@ requests>=2.28.0
 waitress>=3.0.0
 gunicorn>=21.0.0
 openpyxl>=3.1.0
+alipay-sdk-python>=3.3.0
+pyjwt>=2.8.0

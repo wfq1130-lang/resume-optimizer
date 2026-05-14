@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>登录 — AI简历优化器</title>
+<title>登录 — 简历优化分析平台</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
 
 <div class="container">
 <div class="login-box" style="max-width:400px">
-  <h1>AI简历优化器</h1>
+  <h1>简历优化分析平台</h1>
   <div class="card-wrapper" id="tilt-card">
     <div class="card" style="padding:24px">
       {% if success %}
@@ -26,7 +26,8 @@
         <div class="form-group">
           <label>账号</label>
           <input type="text" name="account" class="form-control"
-                 placeholder="用户名 / 手机号 / 邮箱" required autofocus>
+                 placeholder="用户名 / 手机号 / 邮箱" required autofocus
+                 value="{{ account or '' }}">
         </div>
         <div class="form-group">
           <label>密码</label>

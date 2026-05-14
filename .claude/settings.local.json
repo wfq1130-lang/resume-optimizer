@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python -c \"from app import app; print\\('App imported OK'\\)\")",
+      "Bash(python -c \"from models import init_db; init_db\\(\\); print\\('DB OK'\\)\")",
+      "Bash(python -c \"from app import app; print\\('OK'\\)\")",
+      "Bash(python -c \"from app import app; print\\('OK — all imports successful'\\)\")",
+      "Bash(python -c \"from models import init_db; init_db\\(\\); print\\('DB init OK'\\)\")",
+      "Bash(python -c \"from app import app; print\\('app OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"from ats_checker import check_ats; result = check_ats\\('张三 | 13800138000 | zhangsan@email.com\\\\n\\\\n教育背景\\\\n北京大学 计算机科学 本科\\\\n\\\\n工作经历\\\\n某科技公司 软件工程师\\\\n- 负责开发微服务架构，提升系统性能30%\\\\n- 主导设计API网关，日均处理100万次请求\\\\n\\\\n技能\\\\nJava, Python, Spring Boot, MySQL, Redis, Docker', '3-5年Java开发经验 微服务 Spring Boot'\\); print\\('ATS Score:', result['total_score'], 'Grade:', result['grade']\\)\")",
+      "Bash(python -c \"from ats_checker import check_ats\")",
+      "Bash(python -c \"import sys; sys.stderr = sys.stdout; from ats_checker import check_ats\")",
+      "Bash(python -c \"import ats_checker\")",
+      "Bash(python -c \"from app import app; print\\('Flask app OK'\\)\")",
+      "Bash(railway status *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(railway variables *)",
+      "Bash(railway up *)",
+      "Bash(gh auth *)",
+      "Bash(winget install *)",
+      "Bash(where gh *)",
+      "Read(//c/Users/16471/AppData/**)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "WebFetch(domain:balanced-analysis-production-3fbb.up.railway.app)",
+      "Bash(export HTTPS_PROXY=\"http://127.0.0.1:7890\")",
+      "Bash(export HTTP_PROXY=\"http://127.0.0.1:7890\")",
+      "Bash(\"/c/Program Files/GitHub CLI/gh\" auth login --web --hostname github.com)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh\" repo create resume-optimizer --public --source=. --remote=origin --push)",
+      "Bash(railway connect *)",
+      "Bash(railway service *)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh\" auth token)",
+      "Bash(python *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
+    ]
+  }
+}

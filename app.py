@@ -97,6 +97,9 @@ def inject_now():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "GET" and request.args.get("registered"):
+        return render_template("login.html", success="注册成功，请登录")
+
     if request.method == "POST":
         account = request.form.get("account", "").strip()
         password = request.form.get("password", "")
@@ -158,7 +161,7 @@ def register():
         if not user:
             return render_template("register.html", error="账号已被注册")
 
-        return render_template("login.html", success="注册成功，请登录")
+        return redirect(url_for("login", registered="1"))
 
     return render_template("register.html")
 

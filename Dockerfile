@@ -7,10 +7,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p uploads
+RUN mkdir -p uploads /app/data
 
 ENV HOST=0.0.0.0
 ENV PORT=5001
+ENV DATA_DIR=/app/data
 ENV SECRET_KEY=""
 ENV DEEPSEEK_API_KEY=""
 ENV ALIPAY_SANDBOX=true

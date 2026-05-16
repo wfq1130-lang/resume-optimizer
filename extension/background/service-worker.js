@@ -1,6 +1,6 @@
 // Background service worker — proxy API requests and manage auth
 
-const DEFAULT_API_BASE = 'http://127.0.0.1:5001';
+const DEFAULT_API_BASE = 'http://127.0.0.1:5002';
 
 // On install, set defaults
 chrome.runtime.onInstalled.addListener(() => {

@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p uploads /app/data
+
+ENV HOST=0.0.0.0
+ENV PORT=5001
+ENV BACKEND_URL=http://backend:5002
+ENV DATA_DIR=/app/data
+ENV SECRET_KEY=""
+ENV JWT_SECRET=""
+
+EXPOSE 5001
+
+CMD ["python", "app.py"]

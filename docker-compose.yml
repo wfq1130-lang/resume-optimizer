@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "5002:5002"
+    environment:
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - SECRET_KEY=${SECRET_KEY}
+      - BACKEND_PORT=5002
+      - DATA_DIR=/app/data
+      - ALIPAY_SANDBOX=${ALIPAY_SANDBOX:-true}
+      - WX_APPID=${WX_APPID:-}
+      - WX_SECRET=${WX_SECRET:-}
+      - ALIPAY_APP_ID=${ALIPAY_APP_ID:-}
+      - ALIPAY_PRIVATE_KEY=${ALIPAY_PRIVATE_KEY:-}
+      - ALIPAY_PUBLIC_KEY=${ALIPAY_PUBLIC_KEY:-}
+      - ALIPAY_NOTIFY_URL=${ALIPAY_NOTIFY_URL:-}
+    volumes:
+      - backend_data:/app/data
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "5001:5001"
+    environment:
+      - BACKEND_URL=http://backend:5002
+      - JWT_SECRET=${JWT_SECRET}
+      - SECRET_KEY=${SECRET_KEY}
+      - PORT=5001
+      - DATA_DIR=/app/data
+      - TEACHER_CODE=${TEACHER_CODE:-admin123}
+    depends_on:
+      - backend
+    volumes:
+      - frontend_data:/app/data
+
+volumes:
+  backend_data:
+  frontend_data:

@@ -9,7 +9,7 @@ App({
 
   globalData: {
     token: '',
-    apiBase: 'http://127.0.0.1:5001',
+    apiBase: 'http://127.0.0.1:5002',
     userInfo: null
   },
 

@@ -508,6 +508,13 @@ def redeem():
     return render_template("redeem.html")
 
 
+# -- Health check -------------------------------------------------
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
 # -- Payment (session wrappers that delegate to backend) ----------
 
 @app.route("/api/create-order", methods=["POST"])

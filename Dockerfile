@@ -11,11 +11,14 @@ RUN mkdir -p uploads /app/data
 
 ENV HOST=0.0.0.0
 ENV PORT=5001
+ENV BACKEND_PORT=5002
+ENV BACKEND_URL=http://127.0.0.1:5002
 ENV DATA_DIR=/app/data
 ENV SECRET_KEY=""
+ENV JWT_SECRET=""
 ENV DEEPSEEK_API_KEY=""
 ENV ALIPAY_SANDBOX=true
 
-EXPOSE 5001
+EXPOSE 5001 5002
 
-CMD ["python", "app.py"]
+CMD ["bash", "start.sh"]

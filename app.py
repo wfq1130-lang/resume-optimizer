@@ -515,6 +515,17 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@app.route("/dashboard")
+def dashboard():
+    """Proxy backend status dashboard"""
+    import requests as req
+    try:
+        resp = req.get("http://127.0.0.1:5002/", timeout=5)
+        return resp.text, resp.status_code, {"Content-Type": "text/html; charset=utf-8"}
+    except Exception:
+        return "<h1>后端服务不可用</h1>", 503
+
+
 # -- Payment (session wrappers that delegate to backend) ----------
 
 @app.route("/api/create-order", methods=["POST"])

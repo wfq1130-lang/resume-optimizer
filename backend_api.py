@@ -1,13 +1,15 @@
-import json, os, uuid, requests
+import json, os, uuid, requests, logging
 from functools import wraps
+from collections import defaultdict
 from datetime import datetime, timedelta
+from time import time
 
 from flask import Flask, jsonify, request
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from models import (
-    get_db, init_db, create_user, get_user_by_username, get_user_by_id,
+    get_db, close_db, init_db, create_user, get_user_by_username, get_user_by_id,
     get_user_by_phone, get_user_by_email, get_user_by_wx_openid, update_user,
     use_free_quota, can_analyze, save_analysis, get_user_analyses, get_analysis,
     create_order, get_order, mark_order_paid
@@ -16,8 +18,11 @@ from resume_parser import parse_resume
 from ai_analyzer import analyze_resume, match_jd, generate_resume
 from ats_checker import check_ats
 from jd_analyzer import generate_targeted_resume
-from payment import create_qrcode, verify_notify, get_plan, generate_order_no, ALIPAY_SANDBOX
+from payment import create_qrcode, verify_notify, get_plan, generate_order_no, ALIPAY_SANDBOX, create_wxpay_qrcode
 import jwt
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -26,17 +31,27 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc", "txt", "md"}
-JWT_SECRET = os.environ.get("JWT_SECRET", "")
-if not JWT_SECRET:
-    _secret_path = os.path.join(BASE_DIR, ".secret_key")
-    if os.path.exists(_secret_path):
-        with open(_secret_path, "rb") as f:
-            JWT_SECRET = f.read().decode("utf-8", errors="replace")
-    if not JWT_SECRET:
-        JWT_SECRET = os.urandom(24).hex()
+JWT_SECRET = os.environ.get("JWT_SECRET", os.urandom(24).hex())
 JWT_EXPIRY_HOURS = int(os.environ.get("JWT_EXPIRY_HOURS", "720"))
 WX_APPID = os.environ.get("WX_APPID", "")
 WX_SECRET = os.environ.get("WX_SECRET", "")
+
+# Rate limiter
+_bk_rate_limits = defaultdict(list)
+
+def bk_rate_limit(max_requests=15, window=60):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            ip = request.remote_addr or "127.0.0.1"
+            now = time()
+            _bk_rate_limits[ip] = [t for t in _bk_rate_limits[ip] if now - t < window]
+            if len(_bk_rate_limits[ip]) >= max_requests:
+                return jsonify({"error": "请求过于频繁"}), 429
+            _bk_rate_limits[ip].append(now)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 def allowed_file(filename):
@@ -67,6 +82,7 @@ def api_login_required(f):
 # -- Auth routes (API v1) ------------------------------------------
 
 @app.route("/api/v1/credentials-login", methods=["POST"])
+@bk_rate_limit(max_requests=20, window=60)
 def api_credentials_login():
     data = request.get_json(silent=True) or request.form
     account = data.get("account", "").strip()
@@ -429,10 +445,68 @@ def api_targeted_optimize():
 
 # -- Payment routes (API v1) ---------------------------------------
 
+# 生产环境开关：禁用模拟支付
+ENABLE_MOCK_PAYMENT = os.environ.get("ENABLE_MOCK_PAYMENT", "0").lower() in ("1", "true", "yes")
+
+@api_login_required
+def _apply_quota_and_paid(user_id, plan):
+    """支付成功后给用户加额度"""
+    db = get_db()
+    if plan["quota"] == -1:
+        # 无限套餐：is_paid=1，免费次数保持至少1
+        db.execute("UPDATE users SET is_paid=1, free_quota = MAX(free_quota, 1) WHERE id=?", (user_id,))
+    else:
+        db.execute("UPDATE users SET free_quota = free_quota + ? WHERE id=?", (plan["quota"], user_id))
+    db.commit()
+    pass  # connection pooled
+
+
+@api_login_required
+def _activate_plan(order, user_id):
+    """根据订单plan_type激活用户额度"""
+    plan = get_plan(order["plan_type"])
+    if not plan:
+        return
+    if plan["quota"] == -1:
+        # 无限套餐（月/季/年）：设置is_paid并记录过期时间
+        import calendar
+        from datetime import datetime as dt
+        now = dt.utcnow()
+        if order["plan_type"] == "monthly":
+            if now.month == 12:
+                expiry = now.replace(year=now.year+1, month=1, day=1)
+            else:
+                expiry = now.replace(month=now.month+1, day=1)
+        elif order["plan_type"] == "quarterly":
+            m = now.month + 3
+            y = now.year + (m-1)//12
+            m = ((m-1)%12)+1
+            expiry = now.replace(year=y, month=m, day=1)
+        else:  # yearly
+            expiry = now.replace(year=now.year+1, month=now.month, day=1)
+        expiry_str = expiry.strftime("%Y-%m-%d")
+        db = get_db()
+        db.execute("UPDATE users SET is_paid=1, free_quota = MAX(free_quota, 1) WHERE id=?", (user_id,))
+        db.commit()
+        pass  # connection pooled
+        # 存储过期时间到订单
+        from models import get_db as _get_db2
+        db2 = _get_db2()
+        db2.execute("UPDATE orders SET memo=? WHERE order_no=?", (f"expire:{expiry_str}", order["order_no"]))
+        db2.commit()
+        db2.close()
+    else:
+        db = get_db()
+        db.execute("UPDATE users SET free_quota = free_quota + ? WHERE id=?", (plan["quota"], user_id))
+        db.commit()
+        pass  # connection pooled
+
+
 @app.route("/api/v1/create-order", methods=["POST"])
 @api_login_required
 def api_v1_create_order():
     plan_type = (request.get_json(silent=True) or request.form).get("plan_type", "").strip()
+    payment_method = (request.get_json(silent=True) or request.form).get("payment_method", "alipay").strip()
     plan = get_plan(plan_type)
     if not plan:
         return jsonify({"error": "无效的套餐类型"}), 400
@@ -440,8 +514,18 @@ def api_v1_create_order():
     order_no = generate_order_no()
     create_order(order_no, request.api_user_id, plan_type, plan["amount"])
 
+    # 根据支付方式生成不同的二维码
+    if payment_method == "wxpay":
+        result = create_wxpay_qrcode(order_no, plan_type)
+        if "error" in result:
+            return jsonify(result), 500
+        return jsonify(result)
+
+    # Alipay
     result = create_qrcode(order_no, plan_type)
     if "error" in result:
+        if not ENABLE_MOCK_PAYMENT and "未配置" in result.get("error", ""):
+            return jsonify({"error": "支付宝支付尚未配置，请联系管理员"}), 500
         if ALIPAY_SANDBOX and "未配置" in result.get("error", ""):
             return jsonify({
                 "order_no": order_no, "qr_code": "",
@@ -463,11 +547,14 @@ def api_v1_payment_status(order_no):
     return jsonify({"status": order["status"], "order_no": order_no})
 
 
-# -- New: Simulate payment (JWT auth, extracted from session route) -
+# -- 模拟支付（仅在开发/沙箱环境可用） --
 
 @app.route("/api/v1/payment/simulate/<order_no>", methods=["POST"])
 @api_login_required
 def api_v1_simulate_payment(order_no):
+    if not ENABLE_MOCK_PAYMENT:
+        return jsonify({"error": "模拟支付已禁用（生产环境）"}), 403
+
     order = get_order(order_no)
     if not order:
         return jsonify({"error": "订单不存在"}), 404
@@ -480,13 +567,8 @@ def api_v1_simulate_payment(order_no):
     if not plan:
         return jsonify({"error": "套餐类型无效"}), 400
 
-    db = get_db()
     mark_order_paid(order_no, alipay_trade_no="SIMULATED", alipay_buyer_id="dev")
-    db2 = get_db()
-    db2.execute("UPDATE users SET free_quota = free_quota + ?, is_paid = 1 WHERE id = ?",
-                (plan["quota"], request.api_user_id))
-    db2.commit()
-    db2.close()
+    _activate_plan(order, request.api_user_id)
 
     return jsonify({"status": "paid", "order_no": order_no, "plan_type": order["plan_type"]})
 
@@ -511,13 +593,61 @@ def api_payment_notify():
     plan = get_plan(order["plan_type"])
     mark_order_paid(result["order_no"], result["trade_no"], result["buyer_id"])
 
-    db = get_db()
-    db.execute("UPDATE users SET free_quota = free_quota + ?, is_paid = 1 WHERE id = ?",
-               (plan["quota"], order["user_id"]))
-    db.commit()
-    db.close()
+    _activate_plan(order, order["user_id"])
 
     return "success"
+
+
+# -- WeChat Pay notify (no auth) --
+
+@app.route("/api/payment/wxpay-notify", methods=["POST"])
+def api_wxpay_notify():
+    import xml.etree.ElementTree as ET
+    import hashlib
+
+    xml_data = request.data
+    root = ET.fromstring(xml_data)
+    return_code = root.findtext("return_code", "")
+
+    if return_code != "SUCCESS":
+        return _wxpay_reply("FAIL", "通信失败")
+
+    order_no = root.findtext("out_trade_no", "")
+    trade_no = root.findtext("transaction_id", "")
+    total_fee = root.findtext("total_fee", "0")
+    sign = root.findtext("sign", "")
+
+    # 验证签名
+    from payment import WX_API_KEY
+    params = {}
+    for child in root:
+        if child.tag != "sign":
+            params[child.tag] = child.text or ""
+    keys = sorted(params.keys())
+    raw = "&".join(f"{k}={params[k]}" for k in keys) + f"&key={WX_API_KEY}"
+    calc_sign = hashlib.md5(raw.encode("utf-8")).hexdigest().upper()
+
+    if calc_sign != sign:
+        return _wxpay_reply("FAIL", "签名验证失败")
+
+    order = get_order(order_no)
+    if not order:
+        return _wxpay_reply("FAIL", "订单不存在")
+    if order["status"] == "paid":
+        return _wxpay_reply("SUCCESS", "OK")
+
+    mark_order_paid(order_no, alipay_trade_no="WX-"+trade_no, alipay_buyer_id="wxpay")
+    _activate_plan(order, order["user_id"])
+
+    return _wxpay_reply("SUCCESS", "OK")
+
+
+def _wxpay_reply(code, msg):
+    from flask import make_response
+    xml = f"<xml><return_code><![CDATA[{code}]]></return_code><return_msg><![CDATA[{msg}]]></return_msg></xml>"
+    resp = make_response(xml)
+    resp.headers["Content-Type"] = "text/xml; charset=utf-8"
+    return resp
 
 
 # -- Status page ---------------------------------------------------
@@ -587,7 +717,7 @@ def backend_status():
     """).fetchall()
     max_pay = max((r["cnt"] for r in pay_daily), default=1)
 
-    db.close()
+    pass  # connection pooled
 
     # -- Render helpers --
     def stat_card(label, value, color="#22c55e"):
@@ -724,6 +854,154 @@ tr:hover td {{ background:rgba(79,110,247,.05); }}
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
+
+
+# -- New AI Features (API v1) ------------------------------------------
+
+@app.route("/api/v1/interview", methods=["POST"])
+@api_login_required
+def api_interview():
+    from ai_analyzer import simulate_interview
+    data = request.get_json(silent=True) or request.form
+    resume_text = data.get("resume_text", "").strip()
+    jd_text = data.get("jd_text", "").strip()
+    if not resume_text or len(resume_text) < 50:
+        return jsonify({"error": "简历内容至少50字"}), 400
+    if not jd_text or len(jd_text) < 30:
+        return jsonify({"error": "请提供职位描述(JD)"}), 400
+    result = simulate_interview(resume_text[:4000], jd_text[:3000])
+    if "error" in result:
+        return jsonify(result), 500
+    return jsonify(result)
+
+
+@app.route("/api/v1/english", methods=["POST"])
+@api_login_required
+def api_english_resume():
+    from ai_analyzer import optimize_english_resume
+    data = request.get_json(silent=True) or request.form
+    resume_text = data.get("resume_text", "").strip()
+    jd_text = data.get("jd_text", "").strip()
+    if not resume_text or len(resume_text) < 50:
+        return jsonify({"error": "简历内容至少50字"}), 400
+    result = optimize_english_resume(resume_text[:5000], jd_text[:3000])
+    if "error" in result:
+        return jsonify(result), 500
+    return jsonify(result)
+
+
+@app.route("/api/v1/cover-letter", methods=["POST"])
+@api_login_required
+def api_cover_letter():
+    from ai_analyzer import generate_cover_letter
+    data = request.get_json(silent=True) or request.form
+    resume_text = data.get("resume_text", "").strip()
+    jd_text = data.get("jd_text", "").strip()
+    if not resume_text or len(resume_text) < 50:
+        return jsonify({"error": "简历内容至少50字"}), 400
+    if not jd_text or len(jd_text) < 30:
+        return jsonify({"error": "请提供职位描述(JD)"}), 400
+    result = generate_cover_letter(resume_text[:4000], jd_text[:3000])
+    if "error" in result:
+        return jsonify(result), 500
+    return jsonify(result)
+
+
+# -- Referral routes (API v1) ------------------------------------------
+
+@app.route("/api/v1/referral/code", methods=["GET"])
+@api_login_required
+def api_referral_code():
+    from models import create_referral_code
+    db = get_db()
+    existing = db.execute(
+        "SELECT code FROM referrals WHERE referrer_id=? AND referred_id IS NULL ORDER BY created_at DESC LIMIT 1",
+        (request.api_user_id,)
+    ).fetchone()
+    db.close()
+    if existing:
+        return jsonify({"code": existing["code"]})
+    code = create_referral_code(request.api_user_id)
+    return jsonify({"code": code})
+
+
+@app.route("/api/v1/referral/stats", methods=["GET"])
+@api_login_required
+def api_referral_stats():
+    from models import get_referral_stats
+    count = get_referral_stats(request.api_user_id)
+    return jsonify({"total_referrals": count, "reward_per_referral": 2})
+
+
+@app.route("/api/v1/referral/reward", methods=["POST"])
+@api_login_required
+def api_referral_claim():
+    db = get_db()
+    refs = db.execute(
+        "SELECT * FROM referrals WHERE referrer_id=? AND referred_id IS NOT NULL AND reward_claimed=0",
+        (request.api_user_id,)
+    ).fetchall()
+    if not refs:
+        db.close()
+        return jsonify({"error": "没有待领取的推荐奖励"}), 400
+    count = len(refs)
+    db.execute("UPDATE users SET free_quota = free_quota + ? WHERE id=?", (count * 2, request.api_user_id))
+    db.execute("UPDATE referrals SET reward_claimed=1 WHERE referrer_id=? AND reward_claimed=0", (request.api_user_id,))
+    db.commit()
+    db.close()
+    return jsonify({"ok": True, "rewarded": count, "quota_added": count * 2})
+
+
+# -- Enterprise API Key routes -----------------------------------------
+
+@app.route("/api/v1/enterprise/keys", methods=["GET"])
+@api_login_required
+def api_enterprise_keys():
+    db = get_db()
+    keys = db.execute(
+        "SELECT id, api_key, name, calls_used, calls_limit, is_active, created_at FROM enterprise_api_keys WHERE user_id=? ORDER BY created_at DESC",
+        (request.api_user_id,)
+    ).fetchall()
+    db.close()
+    return jsonify([{
+        "id": k["id"], "api_key": k["api_key"][:12] + "..." + k["api_key"][-4:],
+        "name": k["name"], "calls_used": k["calls_used"],
+        "calls_limit": k["calls_limit"], "is_active": k["is_active"],
+        "created_at": k["created_at"]
+    } for k in keys])
+
+
+@app.route("/api/v1/enterprise/keys", methods=["POST"])
+@api_login_required
+def api_create_enterprise_key():
+    from models import create_enterprise_key
+    data = request.get_json(silent=True) or request.form
+    name = data.get("name", "My API Key").strip()
+    calls_limit = int(data.get("calls_limit", 1000))
+    key = create_enterprise_key(request.api_user_id, name, calls_limit)
+    if not key:
+        return jsonify({"error": "创建失败"}), 500
+    return jsonify({"api_key": key, "name": name})
+
+
+@app.route("/api/v1/enterprise/analyze", methods=["POST"])
+def api_enterprise_analyze():
+    api_key = request.headers.get("X-API-Key", "")
+    from models import get_enterprise_key, use_enterprise_call
+    key = get_enterprise_key(api_key)
+    if not key:
+        return jsonify({"error": "无效的API Key"}), 401
+    if not use_enterprise_call(api_key):
+        return jsonify({"error": "调用次数已用完"}), 429
+    from ai_analyzer import analyze_resume
+    data = request.get_json(silent=True) or request.form
+    resume_text = data.get("resume_text", "").strip()
+    if not resume_text or len(resume_text) < 50:
+        return jsonify({"error": "简历内容至少50字"}), 400
+    result = analyze_resume(resume_text[:8000])
+    if "error" in result:
+        return jsonify(result), 500
+    return jsonify(result)
 
 
 # -- Main ----------------------------------------------------------

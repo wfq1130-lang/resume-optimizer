@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -94,23 +94,6 @@
 <div class="confetti-container" id="confetti-container"></div>
 
 <script>
-// Cursor glow
-(function() {
-  var glow = document.getElementById('cursor-glow');
-  if (!glow) return;
-  var mx = 0, my = 0, cx = window.innerWidth/2, cy = window.innerHeight/2;
-  var rafId = null, idleTimer = null, running = false;
-  document.addEventListener('mousemove', function(e) {
-    mx = e.clientX; my = e.clientY;
-    if (!running) { running = true; glow.style.opacity = '1'; rafId = requestAnimationFrame(animate); }
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(function() { running = false; if (rafId) cancelAnimationFrame(rafId); }, 1000);
-  }, { passive: true });
-  document.addEventListener('mouseleave', function() { glow.style.opacity = '0'; running = false; if (rafId) cancelAnimationFrame(rafId); });
-  document.addEventListener('mouseenter', function() { if (running) glow.style.opacity = '1'; });
-  function animate() { cx += (mx-cx)*.08; cy += (my-cy)*.08; glow.style.left=cx+'px'; glow.style.top=cy+'px'; if (running) rafId=requestAnimationFrame(animate); }
-})();
-
 // Toast
 window.showToast = function(msg, type) {
   type = type || 'info';

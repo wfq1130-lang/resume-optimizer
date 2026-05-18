@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -7,9 +7,6 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
-<div class="cursor-glow" id="cursor-glow"></div>
-
 <div class="container">
 <div class="login-box" style="max-width:400px">
   <h1>找回密码</h1>
@@ -31,8 +28,8 @@
       </p>
       <form method="POST">
         <div class="form-group">
-          <label>邮箱或手机号</label>
-          <input type="text" name="account" class="form-control" placeholder="请输入邮箱或手机号" required autofocus>
+          <label for="forgot-account">邮箱或手机号</label>
+          <input type="text" name="account" id="forgot-account" class="form-control" placeholder="请输入邮箱或手机号" required autofocus>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:1rem">发送重置链接</button>
       </form>

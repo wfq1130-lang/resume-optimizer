@@ -1,13 +1,15 @@
-import json, os, uuid
+import json, os, uuid, logging
 from functools import wraps
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timedelta
+from time import time
 
-from flask import Flask, jsonify, redirect, render_template, request, session, send_file, url_for
+from flask import Flask, jsonify, redirect, render_template, request, session, send_file, url_for, make_response
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from models import (
-    get_db, init_db, create_user, get_user_by_username, get_user_by_id,
+    get_db, close_db, init_db, create_user, get_user_by_username, get_user_by_id,
     get_user_by_phone, get_user_by_email, get_user_by_reset_token, update_user,
     use_free_quota, can_analyze, save_analysis, get_user_analyses, get_analysis,
     create_order, get_order, mark_order_paid
@@ -16,25 +18,67 @@ from ai_analyzer import generate_resume as ai_generate_resume
 from payment import get_plan
 from internal_client import backend_post, backend_get
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
-_secret_path = os.path.join(BASE_DIR, ".secret_key")
-if os.path.exists(_secret_path):
-    with open(_secret_path, "rb") as f:
-        _secret = f.read()
-else:
-    _secret = os.urandom(24)
-    with open(_secret_path, "wb") as f:
-        f.write(_secret)
-app.secret_key = os.environ.get("SECRET_KEY", _secret.hex())
+app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24).hex())
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# Session security hardening
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=False,  # Set True in production with HTTPS
+)
+if not app.debug:
+    app.config["SESSION_COOKIE_SECURE"] = True
+
+# CSRF protection — generate tokens per session
+def _csrf_token():
+    if "_csrf_token" not in session:
+        import secrets
+        session["_csrf_token"] = secrets.token_hex(32)
+    return session["_csrf_token"]
+
+@app.before_request
+def _check_csrf():
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        # Skip CSRF for API endpoints and payment callbacks
+        if request.path.startswith("/api/"):
+            return
+        token = request.form.get("_csrf_token", "") or request.headers.get("X-CSRF-Token", "")
+        if token != _csrf_token():
+            logger.warning("CSRF validation failed for %s from %s", request.path, request.remote_addr)
+            return "Invalid CSRF token", 403
+
+app.jinja_env.globals["csrf_token"] = _csrf_token
+
 ALLOWED_EXTENSIONS = {"pdf", "docx", "doc", "txt", "md"}
-TEACHER_CODE = os.environ.get("TEACHER_CODE", "admin123")
+TEACHER_CODE = os.environ.get("TEACHER_CODE", os.urandom(16).hex())
+
+# Rate limiter
+_rate_limits = defaultdict(list)
+
+def rate_limit(max_requests=10, window=60):
+    def decorator(f):
+        @wraps(f)
+        def wrapped(*args, **kwargs):
+            ip = request.remote_addr or "127.0.0.1"
+            now = time()
+            _rate_limits[ip] = [t for t in _rate_limits[ip] if now - t < window]
+            if len(_rate_limits[ip]) >= max_requests:
+                logger.warning("Rate limit hit: %s on %s", ip, request.path)
+                return "请求过于频繁，请稍后再试", 429
+            _rate_limits[ip].append(now)
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 def allowed_file(filename):
@@ -52,6 +96,15 @@ def login_required(f):
     return decorated
 
 
+def api_login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user_id" not in session:
+            return jsonify({"error": "请先登录"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
 def quota_required(f):
     """需要剩余免费次数或付费才能访问"""
     @wraps(f)
@@ -60,6 +113,16 @@ def quota_required(f):
             return redirect(url_for("pricing"))
         return f(*args, **kwargs)
     return decorated
+
+
+# -- Static files with caching -----------------------------------
+
+@app.after_request
+def add_cache_headers(response):
+    if request.path.startswith("/static/"):
+        response.cache_control.max_age = 86400  # 1 day
+        response.cache_control.public = True
+    return response
 
 
 # -- Context processor -------------------------------------------
@@ -72,6 +135,7 @@ def inject_now():
 # -- Auth routes -------------------------------------------------
 
 @app.route("/login", methods=["GET", "POST"])
+@rate_limit(max_requests=20, window=60)
 def login():
     if request.method == "GET" and request.args.get("registered"):
         return render_template("login.html", success="注册成功，请登录")
@@ -107,6 +171,7 @@ def login():
 
 
 @app.route("/register", methods=["GET", "POST"])
+@rate_limit(max_requests=10, window=60)
 def register():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -134,12 +199,21 @@ def register():
         if not user:
             return render_template("register.html", error="账号已被注册")
 
+        # Handle referral code
+        ref_code = request.form.get("ref", "").strip()
+        if ref_code:
+            from models import get_referral_by_code, use_referral_code
+            referral = get_referral_by_code(ref_code)
+            if referral and not referral["referred_id"]:
+                use_referral_code(ref_code, user["id"])
+
         return redirect(url_for("login", registered="1"))
 
     return render_template("register.html")
 
 
 @app.route("/forgot", methods=["GET", "POST"])
+@rate_limit(max_requests=5, window=300)
 def forgot():
     if request.method == "POST":
         account = request.form.get("account", "").strip()
@@ -266,6 +340,20 @@ def pricing():
     return render_template("pricing.html")
 
 
+@app.route("/api/no-quota-status")
+@api_login_required
+def api_no_quota_status():
+    """检查是否需要弹出升级引导"""
+    remaining = session.get("free_quota", 0)
+    is_paid = session.get("is_paid", False)
+    return jsonify({
+        "remaining": remaining,
+        "is_paid": is_paid,
+        "show_upgrade_prompt": remaining <= 1 and not is_paid,
+        "show_force_upgrade": remaining <= 0 and not is_paid,
+    })
+
+
 @app.route("/export/<int:analysis_id>")
 @login_required
 def export_resume(analysis_id):
@@ -277,6 +365,32 @@ def export_resume(analysis_id):
         optimized_resume=analysis["optimized_resume"],
         created_at=analysis["created_at"]
     )
+
+
+@app.route("/export/pdf/<int:analysis_id>")
+@login_required
+def export_resume_pdf(analysis_id):
+    """导出优化简历为PDF"""
+    analysis = get_analysis(analysis_id, session["user_id"])
+    if not analysis:
+        return "记录不存在", 404
+
+    html = render_template("export_pdf.html",
+        optimized_resume=analysis["optimized_resume"],
+        created_at=analysis["created_at"],
+        score=analysis["overall_score"],
+        resume_filename=analysis["resume_filename"] or "优化简历"
+    )
+    try:
+        from weasyprint import HTML as WPHTML
+        pdf = WPHTML(string=html).write_pdf()
+        from flask import make_response
+        response = make_response(pdf)
+        response.headers["Content-Type"] = "application/pdf"
+        response.headers["Content-Disposition"] = f'attachment; filename="optimized_resume_{analysis_id}.pdf"'
+        return response
+    except ImportError:
+        return "PDF生成服务未安装", 500
 
 
 @app.route("/privacy")
@@ -398,6 +512,87 @@ def targeted_optimize():
         analysis_id=result.get("analysis_id"))
 
 
+# -- New: Interview, English, Cover Letter routes ------------------
+
+@app.route("/interview", methods=["GET", "POST"])
+@login_required
+def interview():
+    if request.method == "POST":
+        resume_text = request.form.get("resume_text", "").strip()
+        jd_text = request.form.get("jd_text", "").strip()
+        if not resume_text or len(resume_text) < 50:
+            return render_template("interview.html", error="简历内容至少50字")
+        if not jd_text or len(jd_text) < 30:
+            return render_template("interview.html", error="请提供JD")
+        result, status = backend_post("/api/v1/interview",
+            data={"resume_text": resume_text, "jd_text": jd_text},
+            user_id=session["user_id"])
+        if "error" in result:
+            return render_template("interview.html", error=result["error"])
+        return render_template("interview.html", result=result,
+            resume_text=resume_text, jd_text=jd_text)
+    return render_template("interview.html")
+
+
+@app.route("/english-resume", methods=["GET", "POST"])
+@login_required
+def english_resume():
+    if request.method == "POST":
+        resume_text = request.form.get("resume_text", "").strip()
+        jd_text = request.form.get("jd_text", "").strip()
+        if not resume_text or len(resume_text) < 50:
+            return render_template("english_resume.html", error="简历内容至少50字")
+        result, status = backend_post("/api/v1/english",
+            data={"resume_text": resume_text, "jd_text": jd_text},
+            user_id=session["user_id"])
+        if "error" in result:
+            return render_template("english_resume.html", error=result["error"])
+        return render_template("english_resume.html", result=result,
+            resume_text=resume_text)
+    return render_template("english_resume.html")
+
+
+@app.route("/cover-letter", methods=["GET", "POST"])
+@login_required
+def cover_letter():
+    if request.method == "POST":
+        resume_text = request.form.get("resume_text", "").strip()
+        jd_text = request.form.get("jd_text", "").strip()
+        if not resume_text or len(resume_text) < 50:
+            return render_template("cover_letter.html", error="简历内容至少50字")
+        if not jd_text or len(jd_text) < 30:
+            return render_template("cover_letter.html", error="请提供JD")
+        result, status = backend_post("/api/v1/cover-letter",
+            data={"resume_text": resume_text, "jd_text": jd_text},
+            user_id=session["user_id"])
+        if "error" in result:
+            return render_template("cover_letter.html", error=result["error"])
+        return render_template("cover_letter.html", result=result,
+            resume_text=resume_text, jd_text=jd_text)
+    return render_template("cover_letter.html")
+
+
+# -- Referral page -----------------------------------------------
+
+@app.route("/referral")
+@login_required
+def referral():
+    result, _ = backend_get("/api/v1/referral/code", user_id=session["user_id"])
+    ref_code = result.get("code", "")
+    ref_url = url_for("register", ref=ref_code, _external=True) if ref_code else ""
+    return render_template("referral.html", ref_code=ref_code, ref_url=ref_url)
+
+
+@app.route("/api/referral/claim", methods=["POST"])
+@login_required
+def api_referral_claim():
+    result, status = backend_post("/api/v1/referral/reward", user_id=session["user_id"])
+    if result.get("ok"):
+        session["free_quota"] = session.get("free_quota", 0) + result.get("quota_added", 0)
+        session.modified = True
+    return jsonify(result), status
+
+
 # -- Admin ------------------------------------------------------
 
 def admin_required(f):
@@ -433,7 +628,7 @@ def admin():
         "SELECT o.*, u.username FROM orders o JOIN users u ON o.user_id=u.id ORDER BY o.created_at DESC LIMIT 10"
     ).fetchall()
     codes = db.execute("SELECT * FROM redeem_codes ORDER BY created_at DESC LIMIT 20").fetchall()
-    db.close()
+    pass  # connection pooled
     return render_template("admin.html",
         users=users, total_users=total_users, paid_users=paid_users,
         total_analyses=total_analyses, codes=codes,
@@ -449,7 +644,7 @@ def admin_add_quota(user_id):
     db = get_db()
     db.execute("UPDATE users SET free_quota = free_quota + ? WHERE id=?", (amount, user_id))
     db.commit()
-    db.close()
+    pass  # connection pooled
     return redirect(url_for("admin"))
 
 
@@ -462,7 +657,7 @@ def admin_toggle_paid(user_id):
         new_val = 0 if user["is_paid"] else 1
         db.execute("UPDATE users SET is_paid=? WHERE id=?", (new_val, user_id))
         db.commit()
-    db.close()
+    pass  # connection pooled
     return redirect(url_for("admin"))
 
 
@@ -479,7 +674,7 @@ def admin_generate_codes():
         db.execute("INSERT INTO redeem_codes (code, quota_add) VALUES (?, ?)", (code, quota))
         codes.append(code)
     db.commit()
-    db.close()
+    pass  # connection pooled
     return render_template("admin_codes.html", codes=codes, quota=quota)
 
 
@@ -493,7 +688,7 @@ def redeem():
         db = get_db()
         row = db.execute("SELECT * FROM redeem_codes WHERE code=? AND is_used=0", (code,)).fetchone()
         if not row:
-            db.close()
+            pass  # connection pooled
             return render_template("redeem.html", error="兑换码无效或已使用")
 
         db.execute("UPDATE redeem_codes SET is_used=1, used_by=?, used_at=datetime('now') WHERE id=?",
@@ -502,7 +697,7 @@ def redeem():
                    (row["quota_add"], session["user_id"]))
         db.commit()
         session["free_quota"] = session["free_quota"] + row["quota_add"]
-        db.close()
+        pass  # connection pooled
         return render_template("redeem.html", success=f"兑换成功！获得 {row['quota_add']} 次分析额度")
 
     return render_template("redeem.html")
@@ -529,7 +724,7 @@ def dashboard():
 # -- Payment (session wrappers that delegate to backend) ----------
 
 @app.route("/api/create-order", methods=["POST"])
-@login_required
+@api_login_required
 def api_create_order():
     plan_type = request.form.get("plan_type", "").strip()
     result, status = backend_post("/api/v1/create-order",
@@ -539,7 +734,7 @@ def api_create_order():
 
 
 @app.route("/api/check-order", methods=["POST"])
-@login_required
+@api_login_required
 def api_check_order():
     order_no = request.form.get("order_no", "").strip()
     result, status = backend_get(f"/api/v1/payment/status/{order_no}",
@@ -548,7 +743,7 @@ def api_check_order():
 
 
 @app.route("/api/payment/simulate/<order_no>", methods=["POST"])
-@login_required
+@api_login_required
 def api_simulate_payment(order_no):
     result, status = backend_post(f"/api/v1/payment/simulate/{order_no}",
         user_id=session["user_id"])
@@ -570,12 +765,16 @@ if __name__ == "__main__":
     # Ensure admin exists
     admin = get_user_by_username("admin")
     if not admin:
-        create_user("admin", generate_password_hash("admin123"), "管理员")
+        admin_pw = os.environ.get("ADMIN_PASSWORD", os.urandom(12).hex())
+        create_user("admin", generate_password_hash(admin_pw), "管理员")
         db = get_db()
         db.execute("UPDATE users SET is_admin=1, free_quota=9999 WHERE username='admin'")
         db.commit()
-        db.close()
-        print("Admin created: admin / admin123")
+        logger.info("Admin created: admin / %s", admin_pw)
+    try:
+        close_db()
+    except Exception:
+        pass
     port = int(os.environ.get("PORT", 5001))
     host = os.environ.get("HOST", "0.0.0.0")
     debug = os.environ.get("DEBUG", "0") == "1"

@@ -4,9 +4,9 @@ const DEFAULT_API_BASE = 'http://127.0.0.1:5002';
 
 // On install, set defaults
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.sync.get(['apiBase', 'token'], (items) => {
+  chrome.storage.local.get(['apiBase', 'token'], (items) => {
     if (!items.apiBase) {
-      chrome.storage.sync.set({ apiBase: DEFAULT_API_BASE });
+      chrome.storage.local.set({ apiBase: DEFAULT_API_BASE });
     }
   });
 });
@@ -43,7 +43,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return true;
 
     case 'GET_TOKEN':
-      chrome.storage.sync.get(['token'], (items) => sendResponse({ token: items.token || '' }));
+      chrome.storage.local.get(['token'], (items) => sendResponse({ token: items.token || '' }));
       return true;
 
     default:
@@ -53,7 +53,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 function getBase() {
   return new Promise(resolve => {
-    chrome.storage.sync.get(['apiBase'], (items) => {
+    chrome.storage.local.get(['apiBase'], (items) => {
       resolve(items.apiBase || DEFAULT_API_BASE);
     });
   });
@@ -61,7 +61,7 @@ function getBase() {
 
 function getToken() {
   return new Promise(resolve => {
-    chrome.storage.sync.get(['token'], (items) => {
+    chrome.storage.local.get(['token'], (items) => {
       resolve(items.token || '');
     });
   });
@@ -82,7 +82,7 @@ async function apiCall(path, options = {}) {
   });
 
   if (resp.status === 401) {
-    await chrome.storage.sync.remove('token');
+    await chrome.storage.local.remove('token');
     return { error: '未登录，请先登录' };
   }
   return resp.json();
@@ -159,7 +159,7 @@ async function handleLogin(data, sendResponse) {
     });
     const result = await resp.json();
     if (result.token) {
-      await chrome.storage.sync.set({ token: result.token });
+      await chrome.storage.local.set({ token: result.token });
       sendResponse({ ok: true, user: result });
     } else {
       sendResponse({ error: result.error || '登录失败' });
@@ -179,7 +179,7 @@ async function handleRegister(data, sendResponse) {
     });
     const result = await resp.json();
     if (result.token) {
-      await chrome.storage.sync.set({ token: result.token });
+      await chrome.storage.local.set({ token: result.token });
       sendResponse({ ok: true, user: result });
     } else {
       sendResponse({ error: result.error || '注册失败' });

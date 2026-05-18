@@ -37,7 +37,7 @@ function bindEvents() {
 }
 
 function checkAuth() {
-  chrome.storage.sync.get(['token'], (items) => {
+  chrome.storage.local.get(['token'], (items) => {
     if (items.token) {
       showLoggedIn();
     } else {
@@ -259,7 +259,7 @@ function showError(id, msg) {
 }
 
 function doLogout() {
-  chrome.storage.sync.remove('token', () => {
+  chrome.storage.local.remove('token', () => {
     showLoggedOut();
   });
 }

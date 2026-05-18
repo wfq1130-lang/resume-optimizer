@@ -1,7 +1,9 @@
-"""AI 简历分析 — 调用 DeepSeek API"""
+"""AI 简历分析 — 调用 DeepSeek API (with retry)"""
 
-import json, os, re
+import json, os, re, time, logging
 import requests
+
+logger = logging.getLogger(__name__)
 
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -61,13 +63,12 @@ JD_MATCH_SYSTEM_PROMPT = """你是一位资深的HR专家。你的任务是对�
 """
 
 
-def _call_deepseek(system_prompt, user_message, temperature=0.3, max_tokens=4096):
-    """调用 DeepSeek API，返回解析后的 JSON"""
+def _call_deepseek(system_prompt, user_message, temperature=0.3, max_tokens=4096, retries=3):
+    """调用 DeepSeek API with exponential backoff retry, 返回解析后的 JSON"""
     if not DEEPSEEK_API_KEY:
         return {"error": "未配置 DeepSeek API Key，请设置 DEEPSEEK_API_KEY 环境变量"}
 
     url = f"{DEEPSEEK_BASE_URL}/v1/chat/completions"
-
     payload = {
         "model": "deepseek-chat",
         "messages": [
@@ -78,26 +79,45 @@ def _call_deepseek(system_prompt, user_message, temperature=0.3, max_tokens=4096
         "max_tokens": max_tokens,
         "response_format": {"type": "json_object"}
     }
-
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
     }
 
-    try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=120)
-        resp.raise_for_status()
-        data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-        return json.loads(content)
-    except requests.exceptions.Timeout:
-        return {"error": "AI 服务响应超时，请稍后重试"}
-    except requests.exceptions.RequestException as e:
-        return {"error": f"AI 服务请求失败: {str(e)}"}
-    except json.JSONDecodeError:
-        return {"error": "AI 返回格式异常，请重试"}
-    except Exception as e:
-        return {"error": f"分析失败: {str(e)}"}
+    last_error = None
+    for attempt in range(retries):
+        try:
+            resp = requests.post(url, json=payload, headers=headers, timeout=180)
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            return json.loads(content)
+        except requests.exceptions.Timeout:
+            last_error = "AI 服务响应超时"
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else 0
+            if status in (429, 502, 503, 504):
+                wait = 2 ** attempt
+                logger.warning("DeepSeek API %d, retrying in %ds (attempt %d/%d)", status, wait, attempt + 1, retries)
+                time.sleep(wait)
+                continue
+            last_error = f"AI 服务请求失败: {e}"
+            break
+        except requests.exceptions.RequestException as e:
+            wait = 2 ** attempt
+            logger.warning("DeepSeek API connection error, retrying in %ds", wait)
+            time.sleep(wait)
+            continue
+        except json.JSONDecodeError:
+            logger.warning("DeepSeek returned invalid JSON, retrying")
+            continue
+        except Exception as e:
+            last_error = f"分析失败: {e}"
+            break
+
+    if last_error:
+        return {"error": last_error}
+    return {"error": "AI 服务暂时不可用，请稍后重试"}
 
 
 def analyze_resume(resume_text):
@@ -177,3 +197,67 @@ def match_jd(resume_text, jd_text):
         "improvement_plan": result.get("improvement_plan", ""),
         "interview_tips": result.get("interview_tips", "")
     }
+
+
+INTERVIEW_SYSTEM_PROMPT = """你是一位资深HR面试官，拥有10年以上面试经验。根据JD和简历生成针对性面试题。
+
+请严格按照以下JSON格式返回：
+{
+  "technical_questions": [{"question": "...", "purpose": "考察什么能力", "suggested_answer": "参考答案要点"}],
+  "behavioral_questions": [{"question": "...", "purpose": "考察什么", "suggested_answer": "参考要点"}],
+  "self_intro_script": "针对该岗位的自我介绍脚本...",
+  "salary_tips": "薪资谈判建议...",
+  "overall_rating": 85,
+  "preparation_tips": ["准备建议1", "准备建议2"]
+}
+"""
+
+
+def simulate_interview(resume_text, jd_text):
+    """根据简历和JD生成AI面试模拟"""
+    if not DEEPSEEK_API_KEY:
+        return {"error": "未配置AI API密钥"}
+    user_msg = f"简历内容:\n{resume_text[:3000]}\n\n职位描述:\n{jd_text[:3000]}"
+    result = _call_deepseek(INTERVIEW_SYSTEM_PROMPT, user_msg, temperature=0.5, max_tokens=4096)
+    return result
+
+
+ENGLISH_RESUME_PROMPT = """你是一位双语简历专家。将中文简历优化为英文简历，同时保持ATS兼容。
+
+返回JSON格式：
+{
+  "english_resume": "完整的英文简历...",
+  "chinese_resume": "同步优化的中文简历...",
+  "key_translations": [{"cn": "中文术语", "en": "英文翻译"}],
+  "culture_notes": ["文化差异提示1"]
+}
+"""
+
+
+def optimize_english_resume(resume_text, jd_text=""):
+    """将中文简历优化为英文简历"""
+    if not DEEPSEEK_API_KEY:
+        return {"error": "未配置AI API密钥"}
+    jd_hint = f"\n目标职位描述:\n{jd_text[:2000]}" if jd_text else ""
+    user_msg = f"简历:\n{resume_text[:4000]}{jd_hint}"
+    return _call_deepseek(ENGLISH_RESUME_PROMPT, user_msg, temperature=0.3, max_tokens=4096)
+
+
+COVER_LETTER_PROMPT = """你是一位求职信写作专家。根据简历和JD生成定制求职信。
+
+返回JSON：
+{
+  "cover_letter": "完整的求职信...",
+  "highlights": ["亮点提炼1", "亮点提炼2"],
+  "tone": "专业热情/稳重/创新",
+  "customization_tips": "针对此JD的调整建议"
+}
+"""
+
+
+def generate_cover_letter(resume_text, jd_text):
+    """根据简历和JD生成定制求职信"""
+    if not DEEPSEEK_API_KEY:
+        return {"error": "未配置AI API密钥"}
+    user_msg = f"简历:\n{resume_text[:3000]}\n职位描述:\n{jd_text[:3000]}"
+    return _call_deepseek(COVER_LETTER_PROMPT, user_msg, temperature=0.4, max_tokens=3072)

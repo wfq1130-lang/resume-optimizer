@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -7,9 +7,6 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-
-<div class="cursor-glow" id="cursor-glow"></div>
-
 <div class="container">
 <div class="login-box" style="max-width:400px">
   <h1>简历优化分析平台</h1>
@@ -24,14 +21,14 @@
 
       <form method="POST" action="/login">
         <div class="form-group">
-          <label>账号</label>
-          <input type="text" name="account" class="form-control"
+          <label for="login-account">账号</label>
+          <input type="text" name="account" id="login-account" class="form-control"
                  placeholder="用户名 / 手机号 / 邮箱" required autofocus
                  value="{{ account or '' }}">
         </div>
         <div class="form-group">
-          <label>密码</label>
-          <input type="password" name="password" class="form-control" required>
+          <label for="login-password">密码</label>
+          <input type="password" name="password" id="login-password" class="form-control" required>
         </div>
         <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:1rem">登 录</button>
       </form>

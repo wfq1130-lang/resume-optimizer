@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  chrome.storage.sync.get(['apiBase', 'token'], (items) => {
+  chrome.storage.local.get(['apiBase', 'token'], (items) => {
     document.getElementById('api-base').value = items.apiBase || '';
     if (items.token) {
       document.getElementById('account-info').innerHTML = '<span style="color:#22c55e;font-weight:600">已登录</span>';
@@ -12,13 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
       showStatus('api-status', '请输入服务器地址', 'error');
       return;
     }
-    chrome.storage.sync.set({ apiBase }, () => {
+    chrome.storage.local.set({ apiBase }, () => {
       showStatus('api-status', '保存成功', 'success');
     });
   });
 
   document.getElementById('logout-btn').addEventListener('click', () => {
-    chrome.storage.sync.remove('token', () => {
+    chrome.storage.local.remove('token', () => {
       document.getElementById('account-info').innerHTML = '<span style="color:#ef4444">已退出</span>';
     });
   });

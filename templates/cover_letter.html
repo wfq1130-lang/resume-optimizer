@@ -1,0 +1,154 @@
+{% extends "layout.html" %}
+{% block title %}求职信生成 — 简历优化分析平台{% endblock %}
+{% block content %}
+
+<div style="max-width:900px;margin:0 auto">
+  <div style="text-align:center;margin-bottom:8px">
+    <h1 class="page-title" style="justify-content:center;font-size:1.5rem;font-weight:800">✉️ 求职信生成</h1>
+    <p style="color:var(--text-secondary);font-size:.92rem;margin-top:6px">
+      根据简历和JD生成定制求职信
+    </p>
+  </div>
+
+  {% if error %}
+  <div class="card" style="text-align:center;padding:48px">
+    <p style="color:var(--danger);font-size:1.1rem">{{ error }}</p>
+    <a href="/cover-letter" class="btn btn-primary" style="margin-top:16px">返回重试</a>
+  </div>
+  {% endif %}
+
+  <!-- Input Form -->
+  <form method="POST" action="/cover-letter" id="cover-letter-form">
+    <div class="card" style="padding:24px;margin-bottom:24px;border-left:4px solid #16a34a">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:1.6rem">✉️</span>
+        <h4 style="font-weight:700;margin:0">定制求职信</h4>
+        <span class="badge" style="background:#dcfce7;color:#166534;font-size:.7rem">AI 个性化</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:16px">
+        AI将分析你的简历和目标JD，生成一封专业、真诚、突出亮点的定制求职信，帮你脱颖而出。
+      </p>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:.73rem;color:var(--text-muted)">
+        <span>✓ 简历亮点提炼</span><span>✓ JD关键词匹配</span><span>✓ 语调专业得体</span><span>✓ 段落结构优化</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px;display:block;font-weight:500">
+            📄 简历内容 <span style="color:var(--danger)">*</span>
+          </label>
+          <textarea name="resume_text" class="form-control" rows="10"
+            placeholder="粘贴或输入你的简历内容..." required
+            style="resize:vertical;min-height:160px">{{ resume_text or '' }}</textarea>
+        </div>
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px;display:block;font-weight:500">
+            📋 职位描述(JD) <span style="color:var(--danger)">*</span>
+          </label>
+          <textarea name="jd_text" class="form-control" rows="10"
+            placeholder="粘贴目标职位的JD描述..." required
+            style="resize:vertical;min-height:160px">{{ jd_text or '' }}</textarea>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:18px">
+        <button type="submit" class="btn btn-primary" style="padding:12px 36px;font-size:.95rem;background:linear-gradient(135deg,#16a34a,#22c55e)">
+          ✉️ 生成求职信
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Results Section -->
+  {% if result %}
+  <div class="card" style="padding:0;margin-bottom:24px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:16px 24px">
+      <h3 style="margin:0;font-weight:700;font-size:1.1rem">📝 求职信生成结果</h3>
+    </div>
+
+    <div style="padding:20px 24px">
+
+      <!-- Tone Info -->
+      {% if result.tone %}
+      <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:.82rem;font-weight:600;color:var(--text-muted)">语调风格:</span>
+        <span class="badge" style="background:#dcfce7;color:#166534;font-size:.8rem;padding:6px 14px">
+          {{ result.tone }}
+        </span>
+        {% if result.tone_info %}
+        <span style="font-size:.78rem;color:var(--text-secondary)">{{ result.tone_info }}</span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Cover Letter -->
+      {% if result.cover_letter %}
+      <div style="margin-bottom:20px">
+        <div class="flex-between" style="margin-bottom:10px">
+          <h4 style="font-weight:700;margin:0">
+            <span style="font-size:1.1rem">✉️</span> 求职信正文
+          </h4>
+          <button class="btn btn-primary btn-sm" onclick="copyCoverLetter()">📋 复制</button>
+        </div>
+        <div id="cover-letter-block" class="resume-preview" style="padding:28px;max-height:600px;overflow-y:auto;background:var(--bg);border-radius:var(--radius)">
+          <div style="white-space:pre-wrap;line-height:2;font-size:.9rem;color:var(--text);font-family:Georgia,'Times New Roman',serif">
+            {{ result.cover_letter }}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Highlights -->
+      {% if result.highlights %}
+      <div style="margin-bottom:20px">
+        <h4 style="font-weight:700;margin-bottom:10px">
+          <span style="font-size:1.1rem">⭐</span> 简历亮点提炼
+        </h4>
+        <div class="card" style="padding:18px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border-left:4px solid #f59e0b">
+          <ul style="padding-left:20px;margin:0;font-size:.86rem;color:var(--text-secondary);line-height:2">
+            {% for h in result.highlights %}
+            <li>{{ h }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Customization Tips -->
+      {% if result.customization_tips %}
+      <div style="margin-bottom:8px">
+        <h4 style="font-weight:700;margin-bottom:10px">
+          <span style="font-size:1.1rem">💡</span> 个性化调整建议
+        </h4>
+        <div class="card" style="padding:18px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-left:4px solid #0369a1">
+          <div style="font-size:.86rem;color:var(--text-secondary);line-height:1.9;white-space:pre-wrap">
+            {{ result.customization_tips }}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-bottom:40px">
+    <a href="/cover-letter" class="btn btn-outline" style="margin-right:10px">🔄 重新生成</a>
+    <a href="/" class="btn btn-primary">返回首页</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function copyCoverLetter() {
+  var el = document.getElementById('cover-letter-block');
+  if (!el) return;
+  var text = el.textContent.trim();
+  navigator.clipboard.writeText(text).then(function() {
+    if (window.showToast) window.showToast('已复制到剪贴板', 'success');
+  }).catch(function() {
+    if (window.showToast) window.showToast('复制失败，请手动选择', 'error');
+  });
+}
+</script>
+{% endblock %}

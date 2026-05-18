@@ -1,6 +1,9 @@
 __pycache__/
 *.pyc
 data.db
+data.db-shm
+data.db-wal
+.claude/settings.local.json
 uploads/*
 !uploads/.gitkeep
 .env

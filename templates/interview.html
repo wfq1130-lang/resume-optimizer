@@ -1,0 +1,253 @@
+{% extends "layout.html" %}
+{% block title %}AI面试模拟 — 简历优化分析平台{% endblock %}
+{% block content %}
+
+<div style="max-width:900px;margin:0 auto">
+  <div style="text-align:center;margin-bottom:8px">
+    <h1 class="page-title" style="justify-content:center;font-size:1.5rem;font-weight:800">🎯 AI面试模拟</h1>
+    <p style="color:var(--text-secondary);font-size:.92rem;margin-top:6px">
+      根据JD和简历生成针对性面试题，模拟真实面试场景
+    </p>
+  </div>
+
+  {% if error %}
+  <div class="card" style="text-align:center;padding:48px">
+    <p style="color:var(--danger);font-size:1.1rem">{{ error }}</p>
+    <a href="/interview" class="btn btn-primary" style="margin-top:16px">返回重试</a>
+  </div>
+  {% endif %}
+
+  <!-- Input Form -->
+  <form method="POST" action="/interview" id="interview-form">
+    <div class="card" style="padding:24px;margin-bottom:24px;border-left:4px solid var(--primary)">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="font-size:1.6rem">🎯</span>
+        <h4 style="font-weight:700;margin:0">面试模拟输入</h4>
+        <span class="badge" style="background:#ede9fe;color:#6d28d9;font-size:.7rem">AI 驱动</span>
+      </div>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:16px">
+        填入你的简历内容和目标职位JD，AI将为你生成针对性面试问题和模拟场景
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px;display:block;font-weight:500">
+            📄 简历内容 <span style="color:var(--danger)">*</span>
+          </label>
+          <textarea name="resume_text" class="form-control" rows="10"
+            placeholder="粘贴或输入你的完整简历内容..." required
+            style="resize:vertical;min-height:160px">{{ resume_text or '' }}</textarea>
+        </div>
+        <div>
+          <label style="font-size:.78rem;color:var(--text-muted);margin-bottom:6px;display:block;font-weight:500">
+            📋 职位描述(JD) <span style="color:var(--danger)">*</span>
+          </label>
+          <textarea name="jd_text" class="form-control" rows="10"
+            placeholder="粘贴目标职位的JD描述..." required
+            style="resize:vertical;min-height:160px">{{ jd_text or '' }}</textarea>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:18px">
+        <button type="submit" class="btn btn-primary" style="padding:12px 36px;font-size:.95rem">
+          🎯 生成面试模拟
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Results Section -->
+  {% if result %}
+  <div class="card" style="padding:0;margin-bottom:24px;overflow:hidden">
+    <div style="background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;padding:16px 24px">
+      <h3 style="margin:0;font-weight:700;font-size:1.1rem">🤖 AI 面试模拟结果</h3>
+    </div>
+
+    <div style="padding:20px 24px">
+
+      <!-- Technical Questions -->
+      {% if result.technical_questions %}
+      <div style="margin-bottom:20px">
+        <h4 style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:12px;cursor:pointer"
+            onclick="toggleSection(this)" data-section="tech-questions">
+          <span style="font-size:1.2rem">💻</span> 技术面试题
+          <span class="badge" style="background:#ede9fe;color:var(--primary);font-size:.7rem">{{ result.technical_questions|length }} 题</span>
+          <span style="margin-left:auto;transition:transform .3s;font-size:.8rem;color:var(--text-muted)" class="toggle-arrow">▼</span>
+        </h4>
+        <div id="tech-questions" class="expand-section" style="display:block">
+          {% for q in result.technical_questions %}
+          <div class="card" style="padding:16px;margin-bottom:12px;background:var(--bg-card)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px">
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:.88rem;color:var(--text);margin-bottom:4px">
+                  Q{{ loop.index }}. {{ q.question }}
+                </div>
+                {% if q.purpose %}
+                <div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px">
+                  🎯 考察点: {{ q.purpose }}
+                </div>
+                {% endif %}
+              </div>
+              <button class="btn btn-outline btn-sm" style="flex-shrink:0"
+                      onclick="toggleAnswer(this, 'answer-tech-{{ loop.index }}')">
+                📝 查看答案
+              </button>
+            </div>
+            {% if q.suggested_answer %}
+            <div id="answer-tech-{{ loop.index }}" style="display:none;margin-top:10px;padding:14px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:var(--radius);font-size:.84rem;line-height:1.8;color:var(--text-secondary)">
+              <strong style="color:var(--primary)">💡 参考答案:</strong><br>
+              {{ q.suggested_answer }}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Behavioral Questions -->
+      {% if result.behavioral_questions %}
+      <div style="margin-bottom:20px">
+        <h4 style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:12px;cursor:pointer"
+            onclick="toggleSection(this)" data-section="beh-questions">
+          <span style="font-size:1.2rem">🧠</span> 行为面试题
+          <span class="badge" style="background:#fef3c7;color:#b45309;font-size:.7rem">{{ result.behavioral_questions|length }} 题</span>
+          <span style="margin-left:auto;transition:transform .3s;font-size:.8rem;color:var(--text-muted)" class="toggle-arrow">▼</span>
+        </h4>
+        <div id="beh-questions" class="expand-section" style="display:block">
+          {% for q in result.behavioral_questions %}
+          <div class="card" style="padding:16px;margin-bottom:12px;background:var(--bg-card)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px">
+              <div style="flex:1">
+                <div style="font-weight:700;font-size:.88rem;color:var(--text);margin-bottom:4px">
+                  Q{{ loop.index }}. {{ q.question }}
+                </div>
+                {% if q.purpose %}
+                <div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px">
+                  🎯 考察点: {{ q.purpose }}
+                </div>
+                {% endif %}
+              </div>
+              <button class="btn btn-outline btn-sm" style="flex-shrink:0"
+                      onclick="toggleAnswer(this, 'answer-beh-{{ loop.index }}')">
+                📝 查看答案
+              </button>
+            </div>
+            {% if q.suggested_answer %}
+            <div id="answer-beh-{{ loop.index }}" style="display:none;margin-top:10px;padding:14px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:var(--radius);font-size:.84rem;line-height:1.8;color:var(--text-secondary)">
+              <strong style="color:#b45309">💡 参考答案:</strong><br>
+              {{ q.suggested_answer }}
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Self Introduction Script -->
+      {% if result.self_intro_script %}
+      <div style="margin-bottom:20px">
+        <h4 style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:12px;cursor:pointer"
+            onclick="toggleSection(this)" data-section="self-intro">
+          <span style="font-size:1.2rem">🎤</span> 自我介绍脚本
+          <span style="margin-left:auto;transition:transform .3s;font-size:.8rem;color:var(--text-muted)" class="toggle-arrow">▼</span>
+        </h4>
+        <div id="self-intro" class="expand-section" style="display:block">
+          <div class="card" style="padding:20px;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-radius:var(--radius);border-left:4px solid #0369a1">
+            <div style="white-space:pre-wrap;font-size:.88rem;line-height:1.9;color:var(--text-secondary)">
+              {{ result.self_intro_script }}
+            </div>
+            <button class="btn btn-outline btn-sm" style="margin-top:12px"
+                    onclick="copyTextContent('self-intro')">📋 复制脚本</button>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Salary Negotiation Tips -->
+      {% if result.salary_tips %}
+      <div style="margin-bottom:20px">
+        <h4 style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:12px;cursor:pointer"
+            onclick="toggleSection(this)" data-section="salary-tips">
+          <span style="font-size:1.2rem">💰</span> 薪资谈判技巧
+          <span style="margin-left:auto;transition:transform .3s;font-size:.8rem;color:var(--text-muted)" class="toggle-arrow">▼</span>
+        </h4>
+        <div id="salary-tips" class="expand-section" style="display:block">
+          <div class="card" style="padding:20px">
+            <div style="font-size:.88rem;color:var(--text-secondary);line-height:1.9;white-space:pre-wrap">{{ result.salary_tips }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Preparation Tips -->
+      {% if result.preparation_tips %}
+      <div style="margin-bottom:8px">
+        <h4 style="display:flex;align-items:center;gap:8px;font-weight:700;margin-bottom:12px;cursor:pointer"
+            onclick="toggleSection(this)" data-section="prep-tips">
+          <span style="font-size:1.2rem">✅</span> 面试准备清单
+          <span style="margin-left:auto;transition:transform .3s;font-size:.8rem;color:var(--text-muted)" class="toggle-arrow">▼</span>
+        </h4>
+        <div id="prep-tips" class="expand-section" style="display:block">
+          <div class="card" style="padding:20px">
+            <div style="font-size:.88rem;color:var(--text-secondary);line-height:1.9;white-space:pre-wrap">{{ result.preparation_tips }}</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-bottom:40px">
+    <a href="/interview" class="btn btn-outline" style="margin-right:10px">🔄 重新生成</a>
+    <a href="/" class="btn btn-primary">返回首页</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+// Toggle expandable sections
+function toggleSection(header) {
+  var sectionId = header.getAttribute('data-section');
+  var section = document.getElementById(sectionId);
+  var arrow = header.querySelector('.toggle-arrow');
+  if (!section || !arrow) return;
+
+  if (section.style.display === 'none') {
+    section.style.display = 'block';
+    arrow.style.transform = 'rotate(0deg)';
+  } else {
+    section.style.display = 'none';
+    arrow.style.transform = 'rotate(-90deg)';
+  }
+}
+
+// Toggle individual answer
+function toggleAnswer(btn, answerId) {
+  var answer = document.getElementById(answerId);
+  if (!answer) return;
+
+  if (answer.style.display === 'none' || answer.style.display === '') {
+    answer.style.display = 'block';
+    btn.textContent = '📝 收起答案';
+  } else {
+    answer.style.display = 'none';
+    btn.textContent = '📝 查看答案';
+  }
+}
+
+// Copy text content
+function copyTextContent(sectionId) {
+  var el = document.getElementById(sectionId);
+  if (!el) return;
+  var text = el.textContent.trim();
+  navigator.clipboard.writeText(text).then(function() {
+    if (window.showToast) window.showToast('已复制到剪贴板', 'success');
+  }).catch(function() {
+    if (window.showToast) window.showToast('复制失败，请手动选择', 'error');
+  });
+}
+</script>
+{% endblock %}

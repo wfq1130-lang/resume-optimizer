@@ -21,4 +21,4 @@ ENV ALIPAY_SANDBOX=true
 
 EXPOSE 5001 5002
 
-CMD ["bash", "start.sh"]
+CMD ["sh", "-c", "python backend_api.py & sleep 3 && python app.py"]

@@ -4,9 +4,8 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "python backend_api.py & sleep 3 && python app.py",
+    "startCommand": "bash start.sh",
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE"
+    "healthcheckTimeout": 120
   }
 }
